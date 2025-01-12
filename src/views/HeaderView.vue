@@ -5,13 +5,26 @@
     :mini-variant="isMenuCollapsed"
     mini-variant-width="76"
     max-width="181"
+    class="nav-drawer"
   >
-    <v-list-item class="logo-container">
-      <img
-        class="logo"
-        src="@/assets/tabnext-logo.png"
-      />
-    </v-list-item>
+    <v-list>
+      <v-list-item v-show="!isMenuCollapsed">
+        <img
+          class="logo"
+          src="@/assets/tabnext-logo.png"
+        />
+      </v-list-item>
+
+      <v-list-item
+        v-show="isMenuCollapsed"
+        class="mini-logo-container"
+      >
+        <img
+          class="mini-logo"
+          src="@/assets/tabnext-logo-mini.png"
+        />
+      </v-list-item>
+    </v-list>
 
     <v-list
       dense
@@ -113,18 +126,20 @@ export default {
 
 <style scoped>
 .nav-drawer {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
+  padding-top: 24px;
 }
 
 .logo {
   max-width: 65%;
   margin: auto;
 }
-.logo-container {
-  justify-self: center;
-  box-sizing: border-box;
+
+.mini-logo-container {
+  width: 100%;
+}
+.mini-logo {
+  max-width: 100%;
+  margin: auto;
 }
 
 .menu-list {
@@ -136,21 +151,18 @@ export default {
   bottom: 12px;
 }
 
-.list-item {
-}
-
 .mini-icon {
   box-sizing: border-box;
   margin: 8px;
 }
 
 .outlined-link {
-  border: 1.5px solid #4080df;
+  border: 1.5px solid var(--primary);
 }
 .messages-link {
   border: 1.5px solid #ec6161;
 }
 .filled-link {
-  background-color: #4080df;
+  background-color: var(--primary);
 }
 </style>

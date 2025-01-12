@@ -1,0 +1,1 @@
+export const BASE_URL = 'https://webdev.tabnext.asia/api/FrontendInterview/v1/'
