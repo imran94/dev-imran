@@ -1,7 +1,6 @@
 import Vue from "vue";
 import VueRouter from "vue-router";
-import HomeView from "../views/HomeView.vue";
-import WaitingListView from "../views/WaitingListView.vue";
+import WaitingListView from "@/views/WaitingListView.vue";
 
 Vue.use(VueRouter);
 

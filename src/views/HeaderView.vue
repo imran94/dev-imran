@@ -80,7 +80,11 @@
           >
         </v-list-item-icon>
 
-        <v-list-item-content> Messages </v-list-item-content>
+        <v-list-item-content
+          class="caption-2"
+          style="color: var(--text-primary)"
+          >Messages</v-list-item-content
+        >
       </v-list-item>
 
       <v-list-item
@@ -92,9 +96,14 @@
         </v-list-item-icon>
 
         <v-list-item-content>
-          <v-list-item-title>User</v-list-item-title>
+          <v-list-item-title
+            class="footnote"
+            style="color: var(--primary)"
+          >
+            User
+          </v-list-item-title>
 
-          <v-list-item-subtitle>Profile Setting</v-list-item-subtitle>
+          <v-list-item-subtitle class="profile-settings-text"> Profile Settings </v-list-item-subtitle>
         </v-list-item-content>
       </v-list-item>
 
@@ -104,7 +113,7 @@
         </v-list-item-icon>
 
         <v-list-item-content>
-          <v-list-item-title>Sign Out</v-list-item-title>
+          <v-list-item-title class="footnote">Sign Out</v-list-item-title>
         </v-list-item-content>
       </v-list-item>
     </v-list>
@@ -114,8 +123,30 @@
 <script>
 export default {
   data: () => ({
-    isMenuCollapsed: false
+    isMenuCollapsed: false,
+    isMenuAutoCollapsed: false
   }),
+  mounted() {
+    if (window.innerWidth <= 1024) {
+      this.isMenuCollapsed = true
+      this.isMenuAutoCollapsed = true
+    }
+
+    addEventListener('resize', (evt) => {
+      if (window.innerWidth > 1024) {
+        this.isMenuAutoCollapsed = false
+      }
+
+      if (this.isMenuAutoCollapsed) {
+        return
+      }
+
+      if (window.innerWidth <= 1024) {
+        this.isMenuCollapsed = true
+        this.isMenuAutoCollapsed = true
+      }
+    })
+  },
   methods: {
     toggleMenu() {
       this.isMenuCollapsed = !this.isMenuCollapsed
@@ -164,5 +195,12 @@ export default {
 }
 .filled-link {
   background-color: var(--primary);
+}
+
+.profile-settings-text {
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 16.8px;
+  color: var(--text-secondary);
 }
 </style>
