@@ -7,8 +7,14 @@ import {
   fixedRelationships
 } from '@/utils/formSelections'
 import { BASE_URL } from '@/utils/network'
+import NextOfKinForm from './NextOfKinForm.vue'
+
+const dateInputRegex = /^\d{2}\/\d{2}\/\d{4}$/
+const dateCharInputRegex = /\d|\//
+const actionKeyRegex = /Arrow*|Backspace|Home|End|Enter|Tab|Delete/
 
 export default {
+  components: { NextOfKinForm },
   props: {
     showDialog: Boolean
   },
@@ -21,6 +27,12 @@ export default {
     occupations: fixedOccupations,
     relationships: fixedRelationships,
     countryCodes: fixedCountryCodes,
+
+    // DOB Input
+    showDOBMenu: false,
+    userDOB: '',
+    minDobDate: '1900-01-01',
+    maxDobDate: new Date().toISOString(),
 
     documentTypeId: null,
     nationalityId: null,
@@ -57,12 +69,12 @@ export default {
     mailingStructureAddressFlat: '',
     remark: '',
     email: '',
-    isMarketingPurpose: true,
-    isCancelSubscription: true,
+    isMarketingPurpose: null,
+    isCancelSubscription: null,
     smsLanguage: '',
-    isRefuseSms: true,
+    isRefuseSms: null,
     nextOfKin1Name: '',
-    nextOfKin1RelationshipId: 0,
+    nextOfKin1RelationshipId: null,
     nextOfKin1ContactNumber: '',
     nextOfKin1SmsNumber: '',
     nextOfKin1Remark: '',
@@ -76,12 +88,46 @@ export default {
     nextOfKin3ContactNumber: '',
     nextOfKin3SmsNumber: '',
     nextOfKin3Remark: '',
-    isSensitive: true,
-    isOutstandingBill: true,
+    isSensitive: false,
+    isOutstandingBill: false,
     outstandingBillReason: '',
-    isPersonaNonGrata: true,
-    personaNonGrataReason: ''
+    isPersonaNonGrata: false,
+    personaNonGrataReason: '',
+
+    dobRules: [
+      v => {
+        if (!dateInputRegex.test(v)) {
+          return false
+        }
+
+        const dateObj = new Date(v.split('/').toReversed().join('-'))
+
+        if (dateObj.toString().toLowerCase().includes('invalid')) {
+          console.log('dob invalid date')
+          return false
+        }
+
+        const minDate = new Date('1900')
+        const maxDate = new Date()
+
+        if (dateObj < minDate || dateObj > maxDate) {
+          console.log('dob out of bounds')
+          return false
+        }
+
+        console.log('dob correct')
+        return true
+      }
+    ]
   }),
+  computed: {
+    formattedDate() {
+      if (!this.dateOfBirth) return null
+
+      const [year, month, day] = this.dateOfBirth.split('-')
+      return `${day}/${month}/${year}`
+    }
+  },
   mounted() {
     this.fetchOptions()
   },
@@ -99,7 +145,7 @@ export default {
       ])
 
       const [documentTypes, nationalities, occupations, relationships, countryCodes] = await Promise.all(
-        resArr.map((r) => r.json())
+        resArr.map(r => r.json())
       )
 
       this.documentTypes = documentTypes
@@ -109,8 +155,83 @@ export default {
       this.countryCodes = countryCodes
 
       this.fetchingOptions = false
+    },
+    handleDOBInput(dob) {
+      if (dob.length === 3 && dob.charAt(dob.length - 1) !== '/') {
+        dob = `${dob.slice(0, 2)}/${dob.slice(2)}`
+      }
+
+      if (dob.length === 6 && dob.charAt(dob.length - 1) !== '/') {
+        dob = `${dob.slice(0, 5)}/${dob.slice(5)}`
+      }
+
+      this.userDOB = dob
+
+      if (!dateInputRegex.test(this.userDOB)) {
+        return
+      }
+
+      this.dateOfBirth = null
+
+      const regularUserDob = this.userDOB.split('/').toReversed().join('-')
+      const dateObj = new Date(regularUserDob)
+
+      if (dateObj.toString().toLowerCase().includes('invalid')) {
+        return
+      }
+
+      const minDate = new Date(this.minDobDate)
+      const maxDate = new Date(this.maxDobDate)
+
+      if (dateObj < minDate || dateObj > maxDate) {
+        return
+      }
+
+      this.dateOfBirth = regularUserDob
+      console.log('isValidDate', dateObj.toString())
+    },
+    filterDateInput(evt) {
+      if (
+        this.userDOB.length >= 10 &&
+        !actionKeyRegex.test(evt.key) &&
+        !(evt.ctrlKey && (evt.key === 'z' || evt.key === 'a'))
+      ) {
+        evt.preventDefault()
+      }
+
+      if (
+        !(evt.ctrlKey && (evt.key === 'z' || evt.key === 'a')) &&
+        !dateCharInputRegex.test(evt.key) &&
+        !actionKeyRegex.test(evt.key)
+      ) {
+        evt.preventDefault()
+      }
+    },
+    handleDobSelection() {
+      console.log('dateOfBirth Selected', this.dateOfBirth)
+      this.showDOBMenu = false
+      this.userDOB = this.formattedDate
     }
   }
+  // watch: {
+  //   dateOfBirth(oldDOB, newDOB) {
+  //     console.log('watch dateOfBirth', this.dateOfBirth)
+  //     if (!this.dateOfBirth) {
+  //       return
+  //     }
+
+  //     const regularUserDob = this.userDOB.split('/').toReversed().join('-')
+  //     console.log('regularUserDob', regularUserDob)
+  //     console.log('dateOBirth', this.dateOfBirth)
+  //     if (this.dateOfBirth === regularUserDob) {
+  //       console.log('returning')
+  //       return
+  //     }
+
+  //     this.userDOB = this.formattedDate
+  //     console.log('new DOB', newDOB)
+  //   }
+  // }
 }
 </script>
 
@@ -130,6 +251,9 @@ export default {
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
+
+      <v-divider class="divider" />
+
       <v-card-text>
         <v-form class="form">
           <div class="form-section">
@@ -137,7 +261,7 @@ export default {
               <div class="form-section-title">Personal Information</div>
             </div>
             <div class="form-content split-columns">
-              <div class="doc-num-input-control">
+              <div class="colspan-full">
                 <v-label for="doc-num">Document No.<span class="alert-text">*</span></v-label>
                 <div class="doc-num-input-group">
                   <v-select
@@ -216,13 +340,37 @@ export default {
               </div>
               <div>
                 <v-label>Date of Birth<span class="alert-text">*</span></v-label>
-                <v-text-field
-                  hide-details
-                  outlined
-                  dense
-                  clearable
-                  placeholder="DD/MM/YYYY"
-                />
+                <v-menu
+                  v-model="showDOBMenu"
+                  :close-on-content-click="false"
+                  :nudge-right="40"
+                  transition="scale-transition"
+                  offset-y
+                  min-width="auto"
+                >
+                  <!-- v-bind="attrs" -->
+                  <!-- v-on="on" -->
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-text-field
+                      :value="userDOB"
+                      @input="handleDOBInput"
+                      @keydown="filterDateInput"
+                      hide-details
+                      outlined
+                      dense
+                      append-icon="mdi-calendar"
+                      placeholder="DD/MM/YYYY"
+                      :rules="dobRules"
+                      @click:append="showDOBMenu = true"
+                    ></v-text-field>
+                  </template>
+                  <v-date-picker
+                    v-model="dateOfBirth"
+                    :min="minDobDate"
+                    :max="maxDobDate"
+                    @input="handleDobSelection"
+                  ></v-date-picker>
+                </v-menu>
               </div>
               <div>
                 <v-label>Occupation</v-label>
@@ -409,22 +557,126 @@ export default {
             <div class="card-header">
               <div class="form-section-title">Next of Kin</div>
             </div>
-            <div class="form-content"></div>
+            <div class="form-content next-of-kin-section">
+              <next-of-kin-form
+                form-number="1"
+                :relationships="relationships"
+                :fetching-options="fetchingOptions"
+                required
+              />
+
+              <next-of-kin-form
+                form-number="2"
+                :relationships="relationships"
+                :fetching-options="fetchingOptions"
+              />
+
+              <next-of-kin-form
+                form-number="3"
+                :relationships="relationships"
+                :fetching-options="fetchingOptions"
+              />
+            </div>
           </div>
 
           <div class="form-section">
             <div class="card-header">
               <div class="form-section-title">Special Status</div>
+              <v-btn
+                rounded
+                color="primary"
+                class="white--text no-cap"
+                >Edit</v-btn
+              >
             </div>
-            <div class="form-content"></div>
+            <div class="form-content split-columns">
+              <v-checkbox
+                class="m-checkbox caption-1 colspan-full"
+                label="Sensitive Patient"
+                color="#F3BC51"
+                hide-details
+              />
+
+              <v-checkbox
+                class="m-checkbox caption-1"
+                label="Outstanding Bill"
+                color="#F3BC51"
+                hide-details
+              />
+
+              <v-checkbox
+                class="m-checkbox caption-1"
+                label="Persona Non-Grata"
+                color="#F3BC51"
+                hide-details
+                disabled
+              />
+
+              <v-textarea
+                style="border-radius: 7px"
+                outlined
+                hide-details
+                disabled
+                no-resize
+                placeholder="Reason"
+                rows="5"
+              />
+
+              <v-textarea
+                style="border-radius: 7px"
+                outlined
+                hide-details
+                disabled
+                no-resize
+                placeholder="Reason"
+                rows="5"
+              />
+            </div>
           </div>
         </v-form>
       </v-card-text>
+
+      <v-divider class="divider" />
+
+      <v-card-actions style="justify-content: flex-end">
+        <v-btn
+          class="no-cap"
+          color="primary"
+          rounded
+          outlined
+          >Cancel</v-btn
+        >
+        <v-btn
+          class="no-cap"
+          color="primary"
+          rounded
+        >
+          <v-icon
+            left
+            dark
+          >
+            mdi-content-save-outline
+          </v-icon>
+          Save
+        </v-btn>
+      </v-card-actions>
     </v-card>
   </v-dialog>
 </template>
 
 <style scoped>
+.card-header {
+  width: 100%;
+
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.divider {
+  margin: 12px 8px;
+}
+
 .v-text-field .v-input__control .v-input__slot {
   min-height: auto !important;
   display: flex !important;
@@ -442,18 +694,6 @@ export default {
   flex-direction: column;
   gap: 12px;
   margin-top: 8px;
-}
-
-.alert-text {
-  color: var(--alert);
-}
-
-.card-header {
-  width: 100%;
-
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
 }
 
 .form,
@@ -489,7 +729,13 @@ export default {
   row-gap: 8px;
 }
 
-.doc-num-input-control {
+.next-of-kin-section {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr;
+  gap: 8px;
+}
+
+.colspan-full {
   grid-column: 1 / -1;
 }
 .doc-num-input-group {
