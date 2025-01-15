@@ -2,11 +2,12 @@
   <div class="main">
     <div class="top-bar">
       <div class="title-1">Patient</div>
+
       <v-btn
         color="primary"
         class="white--text footnote no-cap"
         rounded
-        @click="showDialog = true"
+        @click="patientFormDialog = true"
       >
         <v-icon
           left
@@ -56,8 +57,8 @@
       />
     </div>
     <patient-form-dialog
-      :show-dialog="showDialog"
-      @on-close-button-clicked="showDialog = false"
+      :show-dialog="patientFormDialog"
+      @on-close="patientFormDialog = false"
     />
   </div>
 </template>
@@ -89,7 +90,7 @@ export default {
     patients: [],
     selectedPatient: null,
     patientAdditionalInfo: null,
-    showDialog: false
+    patientFormDialog: false
   }),
   methods: {
     toggleMenu() {},
@@ -131,7 +132,8 @@ export default {
       const data = await res.json()
       this.patientAdditionalInfo = data
     }
-  }
+  },
+  computed: {}
 }
 </script>
 

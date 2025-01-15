@@ -8,123 +8,74 @@ import {
 } from '@/utils/formSelections'
 import { BASE_URL } from '@/utils/network'
 import NextOfKinForm from './NextOfKinForm.vue'
+import AddressFormDialog from './AddressFormDialog.vue'
+import { blankPatient } from '../../utils/patients'
 
 const dateInputRegex = /^\d{2}\/\d{2}\/\d{4}$/
 const dateCharInputRegex = /\d|\//
 const actionKeyRegex = /Arrow*|Backspace|Home|End|Enter|Tab|Delete/
 
 export default {
-  components: { NextOfKinForm },
+  components: { NextOfKinForm, AddressFormDialog },
   props: {
-    showDialog: Boolean
+    showDialog: Boolean,
+    patiendId: Number
   },
-  emits: ['on-close-button-clicked'],
-  data: () => ({
-    fetchingOptions: false,
+  emits: ['on-close'],
+  data() {
+    return {
+      fetchingOptions: false,
 
-    documentTypes: fixedDocumentTypes,
-    nationalities: fixedNationalities,
-    occupations: fixedOccupations,
-    relationships: fixedRelationships,
-    countryCodes: fixedCountryCodes,
+      documentTypes: fixedDocumentTypes,
+      nationalities: fixedNationalities,
+      occupations: fixedOccupations,
+      relationships: fixedRelationships,
+      countryCodes: fixedCountryCodes,
 
-    // DOB Input
-    showDOBMenu: false,
-    userDOB: '',
-    minDobDate: '1900-01-01',
-    maxDobDate: new Date().toISOString(),
+      cancellationDialog: false,
 
-    documentTypeId: null,
-    nationalityId: null,
-    mobileCountryCodeId: null,
+      // DOB Input
+      showDOBMenu: false,
+      addressFormDialogShowing: false,
+      userDOB: '',
+      minDobDate: '1925-01-01',
+      maxDobDate: new Date().toISOString(),
 
-    documentNumber: '',
-    chineseName: '',
-    surname: '',
-    givenName: '',
-    sex: '',
-    dateOfBirth: '',
-    occupation: '',
-    prNumber: '',
-    homeTelNo: '',
-    mobileNumber: '',
-    isSeparateMailingAddress: true,
-    residentStructureAddressZone: '',
-    residentStructureAddressDistrict: '',
-    residentStructureAddressSubdistrict: '',
-    residentStructureAddressStreet: '',
-    residentStructureAddressVillage: '',
-    residentStructureAddressEstate: '',
-    residentStructureAddressBlock: '',
-    residentStructureAddressFloor: '',
-    residentStructureAddressFlat: '',
-    mailingStructureAddressZone: '',
-    mailingStructureAddressDistrict: '',
-    mailingStructureAddressSubdistrict: '',
-    mailingStructureAddressStreet: '',
-    mailingStructureAddressVillage: '',
-    mailingStructureAddressEstate: '',
-    mailingStructureAddressBlock: '',
-    mailingStructureAddressFloor: '',
-    mailingStructureAddressFlat: '',
-    remark: '',
-    email: '',
-    isMarketingPurpose: null,
-    isCancelSubscription: null,
-    smsLanguage: '',
-    isRefuseSms: null,
-    nextOfKin1Name: '',
-    nextOfKin1RelationshipId: null,
-    nextOfKin1ContactNumber: '',
-    nextOfKin1SmsNumber: '',
-    nextOfKin1Remark: '',
-    nextOfKin2Name: '',
-    nextOfKin2RelationshipId: 0,
-    nextOfKin2ContactNumber: '',
-    nextOfKin2SmsNumber: '',
-    nextOfKin2Remark: '',
-    nextOfKin3Name: '',
-    nextOfKin3RelationshipId: 0,
-    nextOfKin3ContactNumber: '',
-    nextOfKin3SmsNumber: '',
-    nextOfKin3Remark: '',
-    isSensitive: false,
-    isOutstandingBill: false,
-    outstandingBillReason: '',
-    isPersonaNonGrata: false,
-    personaNonGrataReason: '',
+      // Form Data
+      valid: true,
 
-    dobRules: [
-      v => {
-        if (!dateInputRegex.test(v)) {
-          return false
+      patientForm: blankPatient(),
+
+      requiredRule: v => !!v,
+      dobRules: [
+        v => {
+          if (!dateInputRegex.test(v)) {
+            return false
+          }
+
+          const dateObj = new Date(v.split('/').toReversed().join('-'))
+
+          if (dateObj.toString().toLowerCase().includes('invalid')) {
+            return false
+          }
+
+          const minDate = new Date('1900')
+          const maxDate = new Date()
+
+          if (dateObj < minDate || dateObj > maxDate) {
+            return false
+          }
+
+          return true
         }
-
-        const dateObj = new Date(v.split('/').toReversed().join('-'))
-
-        if (dateObj.toString().toLowerCase().includes('invalid')) {
-          console.log('dob invalid date')
-          return false
-        }
-
-        const minDate = new Date('1900')
-        const maxDate = new Date()
-
-        if (dateObj < minDate || dateObj > maxDate) {
-          console.log('dob out of bounds')
-          return false
-        }
-
-        console.log('dob correct')
-        return true
-      }
-    ]
-  }),
+      ]
+    }
+  },
   computed: {
     formattedDate() {
-      if (!this.dateOfBirth) return null
+      if (!this.patientForm.dateOfBirth) return null
 
-      const [year, month, day] = this.dateOfBirth.split('-')
+      const [year, month, day] = this.patientForm.dateOfBirth.split('-')
       return `${day}/${month}/${year}`
     }
   },
@@ -135,7 +86,6 @@ export default {
     async fetchOptions() {
       this.fetchingOptions = true
 
-      console.log('fetchOptions')
       const resArr = await Promise.all([
         fetch(new URL('Configs/DocumentType', BASE_URL)),
         fetch(new URL('Configs/Nationality', BASE_URL)),
@@ -171,7 +121,7 @@ export default {
         return
       }
 
-      this.dateOfBirth = null
+      this.patientForm.dateOfBirth = null
 
       const regularUserDob = this.userDOB.split('/').toReversed().join('-')
       const dateObj = new Date(regularUserDob)
@@ -187,8 +137,7 @@ export default {
         return
       }
 
-      this.dateOfBirth = regularUserDob
-      console.log('isValidDate', dateObj.toString())
+      this.patientForm.dateOfBirth = regularUserDob
     },
     filterDateInput(evt) {
       if (
@@ -208,22 +157,44 @@ export default {
       }
     },
     handleDobSelection() {
-      console.log('dateOfBirth Selected', this.dateOfBirth)
       this.showDOBMenu = false
       this.userDOB = this.formattedDate
+    },
+    resolveChoiceButtonColor(value, desiredValue) {
+      if (!value) {
+        if (!this.valid) {
+          return 'error'
+        }
+        return '8E8E8E'
+      }
+      if (value === desiredValue) return 'primary'
+      return '#C4C4C4'
+    },
+    showAddressFormDialog() {
+      this.addressFormDialogShowing = true
+    },
+    handleFormSubmission() {
+      this.$refs.form.validate()
+    },
+    confirmCancel() {
+      this.cancellationDialog = true
+    },
+    closeFormDialog() {
+      this.cancellationDialog = false
+      this.$emit('on-close')
     }
   }
   // watch: {
-  //   dateOfBirth(oldDOB, newDOB) {
-  //     console.log('watch dateOfBirth', this.dateOfBirth)
-  //     if (!this.dateOfBirth) {
+  //   patientForm.dateOfBirth(oldDOB, newDOB) {
+  //     console.log('watch patientForm.dateOfBirth', this.patientForm.dateOfBirth)
+  //     if (!this.patientForm.dateOfBirth) {
   //       return
   //     }
 
   //     const regularUserDob = this.userDOB.split('/').toReversed().join('-')
   //     console.log('regularUserDob', regularUserDob)
-  //     console.log('dateOBirth', this.dateOfBirth)
-  //     if (this.dateOfBirth === regularUserDob) {
+  //     console.log('dateOBirth', this.patientForm.dateOfBirth)
+  //     if (this.patientForm.dateOfBirth === regularUserDob) {
   //       console.log('returning')
   //       return
   //     }
@@ -244,9 +215,9 @@ export default {
       <v-card-title class="card-header">
         <div class="title-1">Create New Patient</div>
         <v-btn
-          text
           icon
-          @click="$emit('on-close-button-clicked')"
+          outlined
+          @click="$emit('on-close')"
         >
           <v-icon>mdi-close</v-icon>
         </v-btn>
@@ -255,386 +226,436 @@ export default {
       <v-divider class="divider" />
 
       <v-card-text>
-        <v-form class="form">
-          <div class="form-section">
-            <div class="card-header">
-              <div class="form-section-title">Personal Information</div>
-            </div>
-            <div class="form-content split-columns">
-              <div class="colspan-full">
-                <v-label for="doc-num">Document No.<span class="alert-text">*</span></v-label>
-                <div class="doc-num-input-group">
+        <v-form
+          ref="form"
+          v-model="valid"
+          class="form"
+          lazy-validation
+        >
+          <div class="form-column">
+            <div class="form-section">
+              <div class="card-header">
+                <div class="form-section-title">Personal Information</div>
+              </div>
+              <div class="form-content split-columns">
+                <div class="colspan-full">
+                  <v-label for="doc-num">Document No.<span class="alert-text">*</span></v-label>
+                  <div class="doc-num-input-group">
+                    <v-select
+                      v-model="patientForm.documentTypeId"
+                      :rules="[requiredRule]"
+                      hide-details
+                      class="caption-1"
+                      outlined
+                      dense
+                      placeholder="Document Type"
+                      :items="documentTypes"
+                      item-text="description"
+                      item-value="id"
+                      :menu-props="{
+                        bottom: true,
+                        offsetY: true
+                      }"
+                      :loading="fetchingOptions"
+                      :disabled="fetchingOptions"
+                    />
+                    <v-text-field
+                      v-model="patientForm.documentNumber"
+                      :rules="[requiredRule]"
+                      id="doc-num"
+                      hide-details
+                      outlined
+                      dense
+                      clearable
+                      placeholder="Document No."
+                    />
+                  </div>
+                </div>
+                <div>
+                  <v-label>Surname<span class="alert-text">*</span></v-label>
+                  <v-text-field
+                    v-model="patientForm.surname"
+                    :rules="[requiredRule]"
+                    hide-details
+                    outlined
+                    dense
+                    clearable
+                    placeholder="Surname"
+                  />
+                </div>
+                <div>
+                  <v-label>Given Name<span class="alert-text">*</span></v-label>
+                  <v-text-field
+                    v-model="patientForm.givenName"
+                    :rules="[requiredRule]"
+                    hide-details
+                    outlined
+                    dense
+                    clearable
+                    placeholder="Given Name"
+                  />
+                </div>
+                <div>
+                  <v-label>中文姓名</v-label>
+                  <v-text-field
+                    v-model="patientForm.chineseName"
+                    hide-details
+                    outlined
+                    dense
+                    clearable
+                    placeholder="中文姓名"
+                  />
+                </div>
+                <div>
+                  <v-label>Sex<span class="alert-text">*</span></v-label>
+                  <div class="chip-row">
+                    <v-btn
+                      x-small
+                      rounded
+                      style="font-weight: 700"
+                      class="caption-2 no-cap"
+                      :outlined="patientForm.sex !== 'Male'"
+                      @click="patientForm.sex = 'Male'"
+                      :color="resolveChoiceButtonColor(patientForm.sex, 'Male')"
+                    >
+                      Male
+                    </v-btn>
+                    <v-btn
+                      x-small
+                      rounded
+                      style="font-weight: 700"
+                      class="caption-2 no-cap"
+                      :outlined="patientForm.sex !== 'Female'"
+                      @click="patientForm.sex = 'Female'"
+                      :color="resolveChoiceButtonColor(patientForm.sex, 'Female')"
+                    >
+                      Female
+                    </v-btn>
+                  </div>
+                </div>
+                <div>
+                  <v-label>Date of Birth<span class="alert-text">*</span></v-label>
+                  <v-menu
+                    v-model="showDOBMenu"
+                    :close-on-content-click="false"
+                    :nudge-right="40"
+                    transition="scale-transition"
+                    offset-y
+                    min-width="auto"
+                  >
+                    <!-- v-bind="attrs" -->
+                    <!-- v-on="on" -->
+                    <template v-slot:activator="{ on, attrs }">
+                      <v-text-field
+                        :value="userDOB"
+                        @input="handleDOBInput"
+                        @keydown="filterDateInput"
+                        hide-details
+                        outlined
+                        dense
+                        append-icon="mdi-calendar"
+                        placeholder="DD/MM/YYYY"
+                        :rules="dobRules"
+                        @click:append="showDOBMenu = true"
+                      ></v-text-field>
+                    </template>
+                    <v-date-picker
+                      v-model="patientForm.dateOfBirth"
+                      :min="minDobDate"
+                      :max="maxDobDate"
+                      @input="handleDobSelection"
+                    ></v-date-picker>
+                  </v-menu>
+                </div>
+                <div>
+                  <v-label>Occupation</v-label>
+                  <v-autocomplete
+                    hide-details
+                    outlined
+                    dense
+                    v-model="patientForm.occupation"
+                    :items="nationalities"
+                    item-text="description"
+                    placeholder="Occupation"
+                  />
+                </div>
+                <div>
+                  <v-label>Nationality<span class="alert-text">*</span></v-label>
                   <v-select
                     hide-details
                     class="caption-1"
                     outlined
                     dense
-                    placeholder="Document Type"
-                    v-model="documentTypeId"
-                    :items="documentTypes"
+                    placeholder="Nationality"
+                    v-model="patientForm.nationalityId"
+                    :items="nationalities"
                     item-text="description"
                     item-value="id"
                     :menu-props="{
                       bottom: true,
                       offsetY: true
                     }"
+                    :rules="[requiredRule]"
                     :loading="fetchingOptions"
                     :disabled="fetchingOptions"
                   />
+                </div>
+                <div>
+                  <v-label>PR No.</v-label>
                   <v-text-field
-                    id="doc-num"
                     hide-details
                     outlined
                     dense
                     clearable
-                    placeholder="Document No."
+                    placeholder="PR No."
+                  />
+                </div>
+                <div>
+                  <v-label>Mobile No.<span class="alert-text">*</span></v-label>
+                  <v-text-field
+                    hide-details
+                    outlined
+                    dense
+                    clearable
+                    placeholder="Mobile No."
+                    :rules="[requiredRule]"
+                  />
+                </div>
+                <div>
+                  <v-label>Tel No. (Home)</v-label>
+                  <v-text-field
+                    hide-details
+                    outlined
+                    dense
+                    clearable
+                    placeholder="Tel No. (Home)"
                   />
                 </div>
               </div>
-              <div>
-                <v-label>Surname<span class="alert-text">*</span></v-label>
-                <v-text-field
-                  hide-details
-                  outlined
-                  dense
-                  clearable
-                  placeholder="Surname"
-                />
-              </div>
-              <div>
-                <v-label>Given Name<span class="alert-text">*</span></v-label>
-                <v-text-field
-                  hide-details
-                  outlined
-                  dense
-                  clearable
-                  placeholder="Given Name"
-                />
-              </div>
-              <div>
-                <v-label>中文姓名</v-label>
-                <v-text-field
-                  hide-details
-                  outlined
-                  dense
-                  clearable
-                  placeholder="中文姓名"
-                />
-              </div>
-              <div>
-                <v-label>Sex<span class="alert-text">*</span></v-label>
-                <div class="chip-row">
-                  <v-chip
-                    small
-                    outlined
-                  >
-                    Male
-                  </v-chip>
-                  <v-chip
-                    small
-                    outlined
-                  >
-                    Female
-                  </v-chip>
-                </div>
-              </div>
-              <div>
-                <v-label>Date of Birth<span class="alert-text">*</span></v-label>
-                <v-menu
-                  v-model="showDOBMenu"
-                  :close-on-content-click="false"
-                  :nudge-right="40"
-                  transition="scale-transition"
-                  offset-y
-                  min-width="auto"
+            </div>
+
+            <div class="form-section">
+              <div class="card-header">
+                <div class="form-section-title">Address</div>
+                <v-btn
+                  small
+                  color="primary"
+                  class="white--text caption-2 no-cap"
+                  rounded
+                  @click="showAddressFormDialog"
                 >
-                  <!-- v-bind="attrs" -->
-                  <!-- v-on="on" -->
-                  <template v-slot:activator="{ on, attrs }">
-                    <v-text-field
-                      :value="userDOB"
-                      @input="handleDOBInput"
-                      @keydown="filterDateInput"
+                  <v-icon
+                    left
+                    dark
+                  >
+                    mdi-cloud-upload
+                  </v-icon>
+                  Edit Address
+                </v-btn>
+              </div>
+              <div class="form-content split-columns">
+                <div>
+                  <v-label>Patient Address<span class="alert-text">*</span> </v-label>
+                  <div class="z-stack">
+                    <v-textarea
+                      class="border"
+                      :class="{
+                        'border-primary': valid,
+                        'border-alert': !valid
+                      }"
                       hide-details
-                      outlined
-                      dense
-                      append-icon="mdi-calendar"
-                      placeholder="DD/MM/YYYY"
-                      :rules="dobRules"
-                      @click:append="showDOBMenu = true"
-                    ></v-text-field>
-                  </template>
-                  <v-date-picker
-                    v-model="dateOfBirth"
-                    :min="minDobDate"
-                    :max="maxDobDate"
-                    @input="handleDobSelection"
-                  ></v-date-picker>
-                </v-menu>
-              </div>
-              <div>
-                <v-label>Occupation</v-label>
-                <v-autocomplete
-                  hide-details
-                  outlined
-                  dense
-                  v-model="occupation"
-                  :items="nationalities"
-                  item-text="description"
-                  placeholder="Occupation"
-                />
-              </div>
-              <div>
-                <v-label>Nationality<span class="alert-text">*</span></v-label>
-                <v-select
-                  hide-details
-                  class="caption-1"
-                  outlined
-                  dense
-                  placeholder="Nationality"
-                  v-model="nationalityId"
-                  :items="nationalities"
-                  item-text="description"
-                  item-value="id"
-                  :menu-props="{
-                    bottom: true,
-                    offsetY: true
-                  }"
-                  :loading="fetchingOptions"
-                  :disabled="fetchingOptions"
-                />
-              </div>
-              <div>
-                <v-label>PR No.</v-label>
-                <v-text-field
-                  hide-details
-                  outlined
-                  dense
-                  clearable
-                  placeholder="PR No."
-                />
-              </div>
-              <div>
-                <v-label>Mobile No.<span class="alert-text">*</span></v-label>
-                <v-text-field
-                  hide-details
-                  outlined
-                  dense
-                  clearable
-                  placeholder="Mobile No."
-                />
-              </div>
-              <div>
-                <v-label>Tel No. (Home)</v-label>
-                <v-text-field
-                  hide-details
-                  outlined
-                  dense
-                  clearable
-                  placeholder="Tel No. (Home)"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <div class="card-header">
-              <div class="form-section-title">Address</div>
-              <v-btn
-                small
-                color="primary"
-                class="white--text caption-2 no-cap"
-                rounded
-              >
-                <v-icon
-                  left
-                  dark
-                >
-                  mdi-cloud-upload
-                </v-icon>
-                Edit Address
-              </v-btn>
-            </div>
-            <div class="form-content split-columns">
-              <div>
-                <v-label>Patient address<span class="alert-text">*</span></v-label>
-                <div class="z-stack">
-                  <v-textarea
-                    style="border-radius: 7px"
-                    outlined
-                    hide-details
-                    disabled
-                    no-resize
-                    rows="3"
-                  />
-                  <div class="empty-address-text">Empty</div>
+                      disabled
+                      no-resize
+                      rows="3"
+                    />
+                    <div class="empty-address-text">Empty</div>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <v-label>Mailing address<span class="alert-text">*</span></v-label>
-                <div class="z-stack">
-                  <v-textarea
-                    style="border-radius: 7px"
-                    outlined
-                    hide-details
-                    disabled
-                    no-resize
-                    rows="3"
-                  />
-                  <div class="empty-address-text">Empty</div>
+                <div>
+                  <v-label>Mailing Address<span class="alert-text">*</span></v-label>
+                  <div class="z-stack">
+                    <v-textarea
+                      class="border"
+                      :class="{
+                        'border-primary': valid,
+                        'border-alert': !valid
+                      }"
+                      hide-details
+                      disabled
+                      no-resize
+                      rows="3"
+                    />
+                    <div class="empty-address-text">Empty</div>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <v-label>Remarks</v-label>
-                <v-text-field
-                  hide-details
-                  outlined
-                  dense
-                  clearable
-                  placeholder="Remarks"
-                />
-              </div>
-
-              <div>
-                <v-label>Email</v-label>
-                <v-text-field
-                  hide-details
-                  outlined
-                  dense
-                  clearable
-                  placeholder="Email"
-                />
-              </div>
-
-              <div class="label-with-input">
-                <v-label>Mailing List</v-label>
-                <div
-                  class="spaced-row"
-                  style="height: 60%"
-                >
-                  <v-checkbox
-                    class="m-checkbox caption-1"
-                    label="Marketing purpose"
-                    color="#F3BC51"
+                <div>
+                  <v-label>Remarks</v-label>
+                  <v-text-field
                     hide-details
-                  />
-                  <v-checkbox
-                    class="m-checkbox caption-1"
-                    label="Cancel subscription"
-                    color="#F3BC51"
-                    hide-details
+                    outlined
+                    dense
+                    clearable
+                    placeholder="Remarks"
                   />
                 </div>
-              </div>
 
-              <div class="label-with-input">
-                <v-label>SMS Language & Option<span class="alert-text">*</span></v-label>
-                <div class="chip-row">
-                  <v-chip
-                    small
+                <div>
+                  <v-label>Email</v-label>
+                  <v-text-field
+                    hide-details
                     outlined
-                    >Eng</v-chip
+                    dense
+                    clearable
+                    placeholder="Email"
+                  />
+                </div>
+
+                <div class="label-with-input">
+                  <v-label>Mailing List</v-label>
+                  <div
+                    class="spaced-row"
+                    style="height: 60%"
                   >
-                  <v-chip
-                    small
-                    outlined
-                    >Chi</v-chip
-                  >
-                  <v-checkbox
-                    class="m-checkbox caption-1"
-                    label="Refuse SMS"
-                    color="#F3BC51"
-                    hide-details
-                  />
+                    <v-checkbox
+                      class="m-checkbox caption-1 bold"
+                      label="Marketing purpose"
+                      color="#F3BC51"
+                      hide-details
+                    />
+                    <v-checkbox
+                      class="m-checkbox caption-1 bold"
+                      label="Cancel subscription"
+                      color="#F3BC51"
+                      hide-details
+                    />
+                  </div>
+                </div>
+
+                <div class="label-with-input">
+                  <v-label>SMS Language & Option<span class="alert-text">*</span></v-label>
+                  <div class="chip-row">
+                    <v-btn
+                      x-small
+                      rounded
+                      style="font-weight: 700"
+                      class="caption-2 no-cap"
+                      :outlined="patientForm.smsLanguage !== 'Eng'"
+                      @click="patientForm.smsLanguage = 'Eng'"
+                      :color="resolveChoiceButtonColor(patientForm.smsLanguage, 'Eng')"
+                    >
+                      Eng
+                    </v-btn>
+
+                    <v-btn
+                      x-small
+                      rounded
+                      style="font-weight: 700"
+                      class="caption-2 no-cap"
+                      :outlined="patientForm.smsLanguage !== 'Chi'"
+                      @click="patientForm.smsLanguage = 'Chi'"
+                      :color="resolveChoiceButtonColor(patientForm.smsLanguage, 'Chi')"
+                    >
+                      Chi
+                    </v-btn>
+                    <v-checkbox
+                      class="m-checkbox caption-1 bold"
+                      label="Refuse SMS"
+                      color="#F3BC51"
+                      hide-details
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="form-section">
-            <div class="card-header">
-              <div class="form-section-title">Next of Kin</div>
+          <div class="form-column">
+            <div class="form-section">
+              <div class="card-header">
+                <div class="form-section-title">Next of Kin</div>
+              </div>
+              <div class="form-content next-of-kin-section">
+                <next-of-kin-form
+                  form-number="1"
+                  :relationships="relationships"
+                  :fetching-options="fetchingOptions"
+                  required
+                />
+
+                <next-of-kin-form
+                  form-number="2"
+                  :relationships="relationships"
+                  :fetching-options="fetchingOptions"
+                />
+
+                <next-of-kin-form
+                  form-number="3"
+                  :relationships="relationships"
+                  :fetching-options="fetchingOptions"
+                />
+              </div>
             </div>
-            <div class="form-content next-of-kin-section">
-              <next-of-kin-form
-                form-number="1"
-                :relationships="relationships"
-                :fetching-options="fetchingOptions"
-                required
-              />
 
-              <next-of-kin-form
-                form-number="2"
-                :relationships="relationships"
-                :fetching-options="fetchingOptions"
-              />
+            <div class="form-section">
+              <div class="card-header">
+                <div class="form-section-title">Special Status</div>
+              </div>
+              <div class="form-content split-columns">
+                <v-checkbox
+                  class="m-checkbox caption-1 colspan-full bold"
+                  label="Sensitive Patient"
+                  color="#F3BC51"
+                  hide-details
+                />
 
-              <next-of-kin-form
-                form-number="3"
-                :relationships="relationships"
-                :fetching-options="fetchingOptions"
-              />
-            </div>
-          </div>
+                <v-checkbox
+                  v-model="patientForm.isOutstandingBill"
+                  class="m-checkbox caption-1 bold"
+                  label="Outstanding Bill"
+                  color="#F3BC51"
+                  hide-details
+                />
 
-          <div class="form-section">
-            <div class="card-header">
-              <div class="form-section-title">Special Status</div>
-              <v-btn
-                rounded
-                color="primary"
-                class="white--text no-cap"
-                >Edit</v-btn
-              >
-            </div>
-            <div class="form-content split-columns">
-              <v-checkbox
-                class="m-checkbox caption-1 colspan-full"
-                label="Sensitive Patient"
-                color="#F3BC51"
-                hide-details
-              />
+                <v-checkbox
+                  v-model="patientForm.isPersonaNonGrata"
+                  class="m-checkbox caption-1 bold"
+                  label="Persona Non-Grata"
+                  color="#F3BC51"
+                  hide-details
+                  disabled
+                />
 
-              <v-checkbox
-                class="m-checkbox caption-1"
-                label="Outstanding Bill"
-                color="#F3BC51"
-                hide-details
-              />
+                <v-textarea
+                  :filled="!patientForm.isOutstandingBill"
+                  :disabled="!patientForm.isOutstandingBill"
+                  style="border-radius: 7px"
+                  outlined
+                  hide-details
+                  no-resize
+                  placeholder="Reason"
+                />
 
-              <v-checkbox
-                class="m-checkbox caption-1"
-                label="Persona Non-Grata"
-                color="#F3BC51"
-                hide-details
-                disabled
-              />
-
-              <v-textarea
-                style="border-radius: 7px"
-                outlined
-                hide-details
-                disabled
-                no-resize
-                placeholder="Reason"
-                rows="5"
-              />
-
-              <v-textarea
-                style="border-radius: 7px"
-                outlined
-                hide-details
-                disabled
-                no-resize
-                placeholder="Reason"
-                rows="5"
-              />
+                <v-textarea
+                  :filled="!patientForm.isPersonaNonGrata"
+                  style="border-radius: 7px"
+                  outlined
+                  hide-details
+                  disabled
+                  no-resize
+                  placeholder="Reason"
+                />
+              </div>
             </div>
           </div>
         </v-form>
       </v-card-text>
+
+      <address-form-dialog
+        :show-dialog="addressFormDialogShowing"
+        @on-close="addressFormDialogShowing = false"
+      />
 
       <v-divider class="divider" />
 
@@ -644,12 +665,15 @@ export default {
           color="primary"
           rounded
           outlined
+          @click="confirmCancel"
           >Cancel</v-btn
         >
+
         <v-btn
           class="no-cap"
           color="primary"
           rounded
+          @click="handleFormSubmission"
         >
           <v-icon
             left
@@ -660,19 +684,49 @@ export default {
           Save
         </v-btn>
       </v-card-actions>
+
+      <v-dialog
+        v-model="cancellationDialog"
+        width="600px"
+      >
+        <v-card>
+          <v-card-title>
+            <span class="title-1">Confirmation</span>
+          </v-card-title>
+          <v-card-text> Are you sure you want to cancel without saving? </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn
+              class="no-cap"
+              color="primary"
+              rounded
+              outlined
+              @click="cancellationDialog = false"
+              >No</v-btn
+            >
+
+            <v-btn
+              class="no-cap"
+              color="primary"
+              rounded
+              @click="closeFormDialog"
+            >
+              <v-icon
+                left
+                dark
+              >
+                mdi-check
+              </v-icon>
+              Yes
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </v-card>
   </v-dialog>
 </template>
 
 <style scoped>
-.card-header {
-  width: 100%;
-
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-}
-
 .divider {
   margin: 12px 8px;
 }
@@ -688,6 +742,10 @@ export default {
   padding-top: 0;
   align-self: center;
 }
+.bold {
+  font-weight: 700;
+  color: var(--text-primary);
+}
 
 .label-with-input {
   display: flex;
@@ -697,23 +755,38 @@ export default {
 }
 
 .form,
+.form-column,
 .form-content {
   display: grid;
+}
+
+.form {
+  column-gap: 8px;
 }
 
 .form-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-grow: 1;
 }
 
-.form {
+.form,
+.form-column {
   row-gap: 16px;
+}
+
+.form-column {
+  align-content: start;
+  height: 100%;
+  grid-auto-rows: max-content;
 }
 
 .form-content {
   padding: 4px 8px;
   row-gap: 8px;
+  flex-grow: 1;
+  grid-auto-rows: max-content;
 }
 
 .form-section-title {
@@ -766,6 +839,12 @@ export default {
   color: var(--text-secondary);
   align-self: center;
   justify-self: center;
+}
+
+@media (width >= 1400px) {
+  .form {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 </style>
 

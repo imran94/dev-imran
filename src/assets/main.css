@@ -82,6 +82,10 @@ html,
   line-height: 19.2px;
 }
 
+.text-secondary {
+  color: var(--text-secondary);
+}
+
 /* html {
   font-size: 18px;
   font-family: 'Inter';
@@ -112,4 +116,24 @@ html,
 
 .alert-text {
   color: var(--alert);
+}
+
+.card-header {
+  width: 100%;
+
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.border {
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 7px;
+}
+.border-primary {
+  border-color: var(--primary);
+}
+.border-alert {
+  border-color: var(--alert);
 }

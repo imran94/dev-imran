@@ -3,10 +3,22 @@ const actionKeyRegex = /Arrow*|Backspace|Home|End|Enter|Tab|Delete/
 
 export default {
   props: {
-    formNumber: Number,
+    formNumber: String,
     required: Boolean,
     relationships: Array,
     fetchingOptions: Boolean
+  },
+  data: {
+    requiredRule: v => !!v,
+    mObj: {}
+  },
+  computed: {
+    resolveRules() {
+      if (this.required) {
+        return [this.requiredRule]
+      }
+      return []
+    }
   },
   methods: {
     filterNumInput(evt) {
@@ -41,6 +53,7 @@ export default {
         clearable
         prepend-icon="mdi-map-marker"
         placeholder="Next of Kin Name"
+        :rules="required ? [v => !!v] : []"
       />
 
       <v-select
@@ -59,6 +72,7 @@ export default {
         }"
         :loading="fetchingOptions"
         :disabled="fetchingOptions"
+        :rules="required ? [v => !!v] : []"
       />
       <v-text-field
         hide-details
@@ -68,6 +82,7 @@ export default {
         prepend-icon="mdi-map-marker"
         placeholder="Contact Number"
         @keydown="filterNumInput"
+        :rules="required ? [v => !!v] : []"
       />
       <v-text-field
         hide-details
