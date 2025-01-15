@@ -1,10 +1,8 @@
 <script>
-import HelloWorld from './components/HelloWorld.vue'
 import HeaderView from './views/HeaderView.vue'
 
 export default {
   components: {
-    HelloWorld,
     HeaderView
   }
 }

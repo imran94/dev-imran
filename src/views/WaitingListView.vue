@@ -123,8 +123,6 @@ export default {
         return
       }
 
-      console.log('selectPatient')
-
       this.selectedPatient = patient
 
       const url = new URL(`Patients/${patient.id}/AdditionalInfo`, BASE_URL)

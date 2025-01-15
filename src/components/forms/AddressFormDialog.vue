@@ -5,17 +5,8 @@ export default {
   props: {
     showDialog: Boolean
   },
-  emits: ['on-close'],
-  data: () => ({
-    district: '',
-    subDistrict: '',
-    street: '',
-    village: '',
-    estate: '',
-    block: '',
-    floor: '',
-    flat: ''
-  }),
+  emits: ['on-close', 'on-save'],
+  data: () => ({}),
   computed: {
     isSeparateMailingAddress: {
       get() {
@@ -24,40 +15,15 @@ export default {
       set(value) {
         this.$store.commit('updateIsSeparateMailingAddress', value)
       }
-    },
-    zone() {
-      return this.$store.state.address.resident.zone
     }
   },
   methods: {
-    handleZoneUpdate(value) {
-      this.zone = value
+    handleCancel() {
+      this.$emit('on-close')
     },
-    handleDistrictUpdate(value) {
-      this.district = value
-    },
-    handleSubDistrictUpdate(value) {
-      this.subDistrict = value
-    },
-    handleStreetUpdate(value) {
-      this.street = value
-    },
-    handleVillageUpdate(value) {
-      this.village = value
-    },
-    handleEstateUpdate(value) {
-      this.estate = value
-    },
-    handleBlockUpdate(value) {
-      this.block = value
-    },
-    handleFloorUpdate(value) {
-      this.floor = value
-    },
-    handleFlatUpdate(value) {
-      this.flat = value
-    },
-    handleSubmit() {}
+    handleSave() {
+      this.$emit('on-save')
+    }
   }
 }
 </script>
@@ -81,16 +47,6 @@ export default {
       </v-card-title>
 
       <v-card-text class="main">
-        <div>Zone: {{ zone }}</div>
-        <div>district: {{ district }}</div>
-        <div>subDistrict: {{ subDistrict }}</div>
-        <div>street: {{ street }}</div>
-        <div>village: {{ village }}</div>
-        <div>estate: {{ estate }}</div>
-        <div>block: {{ block }}</div>
-        <div>floor: {{ floor }}</div>
-        <div>flat: {{ flat }}</div>
-
         <div class="mailing-address-option">
           <div class="caption-1 text-secondary">Mailing Address Option</div>
 
@@ -106,25 +62,7 @@ export default {
         <div class="address-forms">
           <div class="address-form">
             <div class="subheadline form-heading">Address</div>
-            <address-form
-              address-type="resident"
-              :district="district"
-              :sub-district="subDistrict"
-              :street="street"
-              :village="village"
-              :estate="estate"
-              :block="block"
-              :floor="floor"
-              :flat="flat"
-              @update:district="handleDistrictUpdate"
-              @update:sub-district="handleSubDistrictUpdate"
-              @update:street="handleStreetUpdate"
-              @update:village="handleVillageUpdate"
-              @update:estate="handleEstateUpdate"
-              @update:block="handleBlockUpdate"
-              @update:floor="handleFloorUpdate"
-              @update:flat="handleFlatUpdate"
-            />
+            <address-form address-type="resident" />
           </div>
 
           <div
@@ -132,7 +70,7 @@ export default {
             v-show="isSeparateMailingAddress"
           >
             <div class="subheadline form-heading">Mailing Address</div>
-            <address-form />
+            <address-form address-type="mailing" />
           </div>
         </div>
       </v-card-text>
@@ -143,13 +81,14 @@ export default {
           color="primary"
           rounded
           outlined
+          @click="handleCancel"
           >Cancel</v-btn
         >
         <v-btn
           class="no-cap"
           color="primary"
           rounded
-          @click="handleSubmit"
+          @click="handleSave"
         >
           <v-icon
             left

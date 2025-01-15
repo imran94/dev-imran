@@ -1,60 +1,91 @@
 <script>
 export default {
   props: {
-    addressType: String,
-    district: String,
-    subDistrict: String,
-    street: String,
-    village: String,
-    estate: String,
-    block: String,
-    floor: String,
-    flat: String
+    addressType: String
   },
-  emits: [
-    'update:zone',
-    'update:district',
-    'update:sub-district',
-    'update:street',
-    'update:village',
-    'update:estate',
-    'update:block',
-    'update:floor',
-    'update:flat'
-  ],
   methods: {
-    updateDistrict(value) {
-      this.$emit('update:district', value)
+    getField(key) {
+      return this.$store.state.address[`${this.addressType}StructureAddress${key}`]
     },
-    updateSubDistrict(value) {
-      this.$emit('update:sub-district', value)
-    },
-    updateStreet(value) {
-      this.$emit('update:street', value)
-    },
-    updateVillage(value) {
-      this.$emit('update:village', value)
-    },
-    updateEstate(value) {
-      this.$emit('update:estate', value)
-    },
-    updateBlock(value) {
-      this.$emit('update:block', value)
-    },
-    updateFloor(value) {
-      this.$emit('update:floor', value)
-    },
-    updateFlat(value) {
-      this.$emit('update:flat', value)
+    updateField(key, value) {
+      this.$store.commit(`updateAddressFieldByTypeAndKeyValue`, {
+        addressType: this.addressType,
+        key: key,
+        value: value
+      })
     }
   },
   computed: {
     zone: {
       get() {
-        return this.$store.state.address['resident']['zone']
+        return this.$store.getters.getAddressFieldByTypeAndKey({ addressType: this.addressType, key: 'Zone' })
       },
       set(value) {
-        this.$store.commit('updateAddressByTypeAndKeyValue', this.addressType, 'zone', value)
+        this.updateField('Zone', value)
+      }
+    },
+    district: {
+      get() {
+        return this.$store.getters.getAddressFieldByTypeAndKey({ addressType: this.addressType, key: 'District' })
+      },
+      set(value) {
+        this.updateField('District', value)
+      }
+    },
+    subDistrict: {
+      get() {
+        return this.$store.getters.getAddressFieldByTypeAndKey({ addressType: this.addressType, key: 'Subdistrict' })
+      },
+      set(value) {
+        this.updateField('Subdistrict', value)
+      }
+    },
+    street: {
+      get() {
+        return this.$store.getters.getAddressFieldByTypeAndKey({ addressType: this.addressType, key: 'Street' })
+      },
+      set(value) {
+        this.updateField('Street', value)
+      }
+    },
+    village: {
+      get() {
+        return this.$store.getters.getAddressFieldByTypeAndKey({ addressType: this.addressType, key: 'Village' })
+      },
+      set(value) {
+        this.updateField('Village', value)
+      }
+    },
+    estate: {
+      get() {
+        return this.$store.getters.getAddressFieldByTypeAndKey({ addressType: this.addressType, key: 'Estate' })
+      },
+      set(value) {
+        this.updateField('Estate', value)
+      }
+    },
+    block: {
+      get() {
+        return this.$store.getters.getAddressFieldByTypeAndKey({ addressType: this.addressType, key: 'Block' })
+      },
+      set(value) {
+        this.updateField('Block', value)
+      }
+    },
+    floor: {
+      get() {
+        return this.$store.getters.getAddressFieldByTypeAndKey({ addressType: this.addressType, key: 'Floor' })
+      },
+      set(value) {
+        this.updateField('Floor', value)
+      }
+    },
+    flat: {
+      get() {
+        return this.$store.getters.getAddressFieldByTypeAndKey({ addressType: this.addressType, key: 'Flat' })
+      },
+      set(value) {
+        this.updateField('Flat', value)
       }
     }
   }
@@ -79,8 +110,7 @@ export default {
       <div>
         <v-label>District</v-label>
         <v-text-field
-          :value="district"
-          @input="updateDistrict"
+          v-model="district"
           hide-details
           outlined
           dense
@@ -93,8 +123,7 @@ export default {
     <div>
       <v-label>Sub-District</v-label>
       <v-text-field
-        :value="subDistrict"
-        @input="updateSubDistrict"
+        v-model="subDistrict"
         hide-details
         outlined
         dense
@@ -106,8 +135,7 @@ export default {
     <div>
       <v-label>Street</v-label>
       <v-text-field
-        :value="street"
-        @input="updateStreet"
+        v-model="street"
         hide-details
         outlined
         dense
@@ -119,8 +147,7 @@ export default {
     <div>
       <v-label>Village</v-label>
       <v-text-field
-        :value="village"
-        @input="updateVillage"
+        v-model="village"
         hide-details
         outlined
         dense
@@ -132,8 +159,7 @@ export default {
     <div>
       <v-label>Estate</v-label>
       <v-text-field
-        :value="estate"
-        @input="updateEstate"
+        v-model="estate"
         hide-details
         outlined
         dense
@@ -145,8 +171,7 @@ export default {
     <div>
       <v-label>Block / Building Others (Non-Residential)</v-label>
       <v-text-field
-        :value="block"
-        @input="updateBlock"
+        v-model="block"
         hide-details
         outlined
         dense
@@ -159,8 +184,7 @@ export default {
       <div>
         <v-label>Floor</v-label>
         <v-text-field
-          :value="floor"
-          @input="updateFloor"
+          v-model="floor"
           hide-details
           outlined
           dense
@@ -172,8 +196,7 @@ export default {
       <div>
         <v-label>Flat</v-label>
         <v-text-field
-          :value="flat"
-          @input="updateFlat"
+          v-model="flat"
           hide-details
           outlined
           dense

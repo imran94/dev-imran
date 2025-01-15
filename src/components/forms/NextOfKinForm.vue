@@ -6,11 +6,17 @@ export default {
     formNumber: String,
     required: Boolean,
     relationships: Array,
-    fetchingOptions: Boolean
+    fetchingOptions: Boolean,
+
+    name: String,
+    relationshipId: Number,
+    contactNumber: String,
+    smsNumber: String,
+    remarks: String
   },
+  emits: ['update:name', 'update:relationshipId', 'update:contactNumber', 'update:smsNumber', 'update:remarks'],
   data: {
-    requiredRule: v => !!v,
-    mObj: {}
+    requiredRule: v => !!v
   },
   computed: {
     resolveRules() {
@@ -29,6 +35,21 @@ export default {
       ) {
         evt.preventDefault()
       }
+    },
+    updateName(value) {
+      this.$emit('update:name', value)
+    },
+    updateRelationshipId(value) {
+      this.$emit('update:relationshipId', value)
+    },
+    updateContactNumber(value) {
+      this.$emit('update:contactNumber', value)
+    },
+    updateSmsNumber(value) {
+      this.$emit('update:smsNumber', value)
+    },
+    updateRemarks(value) {
+      this.$emit('update:remarks', value)
     }
   }
 }
@@ -47,6 +68,8 @@ export default {
 
     <div class="form">
       <v-text-field
+        :value="name"
+        @input="updateName"
         hide-details
         outlined
         dense
@@ -57,6 +80,8 @@ export default {
       />
 
       <v-select
+        :value="relationshipId"
+        @change="updateRelationshipId"
         hide-details
         class="caption-1"
         outlined
@@ -75,6 +100,8 @@ export default {
         :rules="required ? [v => !!v] : []"
       />
       <v-text-field
+        :value="contactNumber"
+        @input="updateContactNumber"
         hide-details
         outlined
         dense

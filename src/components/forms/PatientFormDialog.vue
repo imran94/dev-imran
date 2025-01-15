@@ -41,11 +41,6 @@ export default {
       minDobDate: '1925-01-01',
       maxDobDate: new Date().toISOString(),
 
-      // Form Data
-      valid: true,
-
-      patientForm: blankPatient(),
-
       requiredRule: v => !!v,
       dobRules: [
         v => {
@@ -68,7 +63,18 @@ export default {
 
           return true
         }
-      ]
+      ],
+      emailRule: v => {
+        if (v) {
+          return /.+@.+/.test(v)
+        }
+        return true
+      },
+
+      // Form Data
+      valid: true,
+      patientForm: blankPatient(),
+      isSubmitting: false
     }
   },
   computed: {
@@ -77,6 +83,74 @@ export default {
 
       const [year, month, day] = this.patientForm.dateOfBirth.split('-')
       return `${day}/${month}/${year}`
+    },
+    fullResidentAddress() {
+      let addressStr = ''
+      if (this.patientForm.residentStructureAddressFlat) {
+        addressStr += this.patientForm.residentStructureAddressFlat + ', '
+      }
+      if (this.patientForm.residentStructureAddressFlorr) {
+        addressStr += this.patientForm.residentStructureAddressFloor + ', '
+      }
+      if (this.patientForm.residentStructureAddressBlock) {
+        addressStr += this.patientForm.residentStructureAddressBlock + ', '
+      }
+      if (this.patientForm.residentStructureAddressEstate) {
+        addressStr += this.patientForm.residentStructureAddressEstate + ', '
+      }
+      if (this.patientForm.residentStructureAddressVillage) {
+        addressStr += this.patientForm.residentStructureAddressVillage + ',\n'
+      }
+      if (this.patientForm.residentStructureAddressStreet) {
+        addressStr += this.patientForm.residentStructureAddressStreet + ', '
+      }
+      if (this.patientForm.residentStructureAddressSubdistrict) {
+        addressStr += this.patientForm.residentStructureAddressSubdistrict + ',\n'
+      }
+      if (this.patientForm.residentStructureAddressDistrict) {
+        addressStr += this.patientForm.residentStructureAddressDistrict + ', '
+      }
+      if (this.patientForm.residentStructureAddressZone) {
+        addressStr += this.patientForm.residentStructureAddressZone
+      }
+      return addressStr
+    },
+    fullMailingAddress() {
+      let addressStr = ''
+      if (this.patientForm.mailingStructureAddressFlat) {
+        addressStr += this.patientForm.mailingStructureAddressFlat + ', '
+      }
+      if (this.patientForm.mailingStructureAddressFlorr) {
+        addressStr += this.patientForm.mailingStructureAddressFloor + ', '
+      }
+      if (this.patientForm.mailingStructureAddressBlock) {
+        addressStr += this.patientForm.mailingStructureAddressBlock + ', '
+      }
+      if (this.patientForm.mailingStructureAddressEstate) {
+        addressStr += this.patientForm.mailingStructureAddressEstate + ', '
+      }
+      if (this.patientForm.mailingStructureAddressVillage) {
+        addressStr += this.patientForm.mailingStructureAddressVillage + ','
+      }
+      if (addressStr) {
+        addressStr += '\n'
+      }
+      if (this.patientForm.mailingStructureAddressStreet) {
+        addressStr += this.patientForm.mailingStructureAddressStreet + ', '
+      }
+      if (this.patientForm.mailingStructureAddressSubdistrict) {
+        addressStr += this.patientForm.mailingStructureAddressSubdistrict + ','
+      }
+      if (addressStr) {
+        addressStr += '\n'
+      }
+      if (this.patientForm.mailingStructureAddressDistrict) {
+        addressStr += this.patientForm.mailingStructureAddressDistrict + ', '
+      }
+      if (this.patientForm.mailingStructureAddressZone) {
+        addressStr += this.patientForm.mailingStructureAddressZone
+      }
+      return addressStr
     }
   },
   mounted() {
@@ -140,18 +214,27 @@ export default {
       this.patientForm.dateOfBirth = regularUserDob
     },
     filterDateInput(evt) {
-      if (
-        this.userDOB.length >= 10 &&
-        !actionKeyRegex.test(evt.key) &&
-        !(evt.ctrlKey && (evt.key === 'z' || evt.key === 'a'))
-      ) {
-        evt.preventDefault()
-      }
+      // if (
+      //   this.userDOB.length >= 10 &&
+      //   !actionKeyRegex.test(evt.key) &&
+      //   !(evt.ctrlKey && (evt.key === 'z' || evt.key === 'a'))
+      // ) {
+      //   evt.preventDefault()
+      // }
 
       if (
         !(evt.ctrlKey && (evt.key === 'z' || evt.key === 'a')) &&
         !dateCharInputRegex.test(evt.key) &&
         !actionKeyRegex.test(evt.key)
+      ) {
+        evt.preventDefault()
+      }
+    },
+    filterNumInput(evt) {
+      if (
+        !/\d/.test(evt.key) &&
+        !actionKeyRegex.test(evt.key) &&
+        !(evt.ctrlKey && (evt.key === 'z' || evt.key === 'a'))
       ) {
         evt.preventDefault()
       }
@@ -171,10 +254,45 @@ export default {
       return '#C4C4C4'
     },
     showAddressFormDialog() {
+      this.$store.commit('setAddressFieldsFromPatientData', this.patientForm)
       this.addressFormDialogShowing = true
     },
-    handleFormSubmission() {
+    saveAddress() {
+      this.addressFormDialogShowing = false
+      this.patientForm.isSeparateMailingAddress = this.$store.state.isSeparateMailingAddress
+      console.log(`saveAddress - sub-district: ${this.patientForm.residentStructureAddressSubdistrict}`)
+      for (const [key, value] of Object.entries(this.$store.state.addressFields)) {
+        this.patientForm[key] = value
+      }
+      // this.$store.
+    },
+    async handleFormSubmission() {
+      this.isSubmitting = true
+
       this.$refs.form.validate()
+      if (!this.valid) {
+        this.isSubmitting = false
+        return
+      }
+
+      const url = new URL('Patients', BASE_URL)
+      try {
+        const res = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          },
+          method: 'POST',
+          body: JSON.stringify(this.patientForm)
+        })
+        console.log('POST res', res)
+        const data = await res.json()
+        console.log('POST data', data)
+      } catch (err) {
+        console.error(err)
+      }
+
+      this.isSubmitting = false
     },
     confirmCancel() {
       this.cancellationDialog = true
@@ -184,25 +302,6 @@ export default {
       this.$emit('on-close')
     }
   }
-  // watch: {
-  //   patientForm.dateOfBirth(oldDOB, newDOB) {
-  //     console.log('watch patientForm.dateOfBirth', this.patientForm.dateOfBirth)
-  //     if (!this.patientForm.dateOfBirth) {
-  //       return
-  //     }
-
-  //     const regularUserDob = this.userDOB.split('/').toReversed().join('-')
-  //     console.log('regularUserDob', regularUserDob)
-  //     console.log('dateOBirth', this.patientForm.dateOfBirth)
-  //     if (this.patientForm.dateOfBirth === regularUserDob) {
-  //       console.log('returning')
-  //       return
-  //     }
-
-  //     this.userDOB = this.formattedDate
-  //     console.log('new DOB', newDOB)
-  //   }
-  // }
 }
 </script>
 
@@ -240,7 +339,7 @@ export default {
               <div class="form-content split-columns">
                 <div class="colspan-full">
                   <v-label for="doc-num">Document No.<span class="alert-text">*</span></v-label>
-                  <div class="doc-num-input-group">
+                  <div class="selection-text-group doc-num">
                     <v-select
                       v-model="patientForm.documentTypeId"
                       :rules="[requiredRule]"
@@ -374,7 +473,7 @@ export default {
                     outlined
                     dense
                     v-model="patientForm.occupation"
-                    :items="nationalities"
+                    :items="occupations"
                     item-text="description"
                     placeholder="Occupation"
                   />
@@ -403,6 +502,7 @@ export default {
                 <div>
                   <v-label>PR No.</v-label>
                   <v-text-field
+                    v-model="patientForm.prNumber"
                     hide-details
                     outlined
                     dense
@@ -412,18 +512,41 @@ export default {
                 </div>
                 <div>
                   <v-label>Mobile No.<span class="alert-text">*</span></v-label>
-                  <v-text-field
-                    hide-details
-                    outlined
-                    dense
-                    clearable
-                    placeholder="Mobile No."
-                    :rules="[requiredRule]"
-                  />
+                  <div class="selection-text-group mobile-num">
+                    <v-select
+                      v-model="patientForm.mobileCountryCodeId"
+                      :rules="[requiredRule]"
+                      hide-details
+                      class="caption-1"
+                      outlined
+                      dense
+                      placeholder="Country Code"
+                      :items="countryCodes"
+                      item-text="description"
+                      item-value="id"
+                      :menu-props="{
+                        bottom: true,
+                        offsetY: true
+                      }"
+                      :loading="fetchingOptions"
+                      :disabled="fetchingOptions"
+                    />
+                    <v-text-field
+                      v-model="patientForm.mobileNumber"
+                      @keydown="filterNumInput"
+                      hide-details
+                      outlined
+                      dense
+                      clearable
+                      placeholder="Mobile No."
+                      :rules="[requiredRule]"
+                    />
+                  </div>
                 </div>
                 <div>
                   <v-label>Tel No. (Home)</v-label>
                   <v-text-field
+                    v-model="patientForm.homeTelNo"
                     hide-details
                     outlined
                     dense
@@ -458,17 +581,23 @@ export default {
                   <v-label>Patient Address<span class="alert-text">*</span> </v-label>
                   <div class="z-stack">
                     <v-textarea
-                      class="border"
+                      :value="fullResidentAddress"
+                      class="border textarea-no-spacing"
                       :class="{
-                        'border-primary': valid,
-                        'border-alert': !valid
+                        'border-primary': valid || fullResidentAddress,
+                        'border-alert': !fullResidentAddress && !valid
                       }"
                       hide-details
                       disabled
                       no-resize
                       rows="3"
                     />
-                    <div class="empty-address-text">Empty</div>
+                    <div
+                      v-show="!fullResidentAddress"
+                      class="empty-address-text"
+                    >
+                      Empty
+                    </div>
                   </div>
                 </div>
 
@@ -476,23 +605,30 @@ export default {
                   <v-label>Mailing Address<span class="alert-text">*</span></v-label>
                   <div class="z-stack">
                     <v-textarea
-                      class="border"
+                      :value="fullMailingAddress"
+                      class="border textarea-no-spacing"
                       :class="{
-                        'border-primary': valid,
-                        'border-alert': !valid
+                        'border-primary': valid || fullMailingAddress,
+                        'border-alert': !fullMailingAddress && !valid
                       }"
                       hide-details
                       disabled
                       no-resize
                       rows="3"
                     />
-                    <div class="empty-address-text">Empty</div>
+                    <div
+                      v-show="!fullMailingAddress"
+                      class="empty-address-text"
+                    >
+                      Empty
+                    </div>
                   </div>
                 </div>
 
                 <div>
                   <v-label>Remarks</v-label>
                   <v-text-field
+                    v-model="patientForm.remark"
                     hide-details
                     outlined
                     dense
@@ -504,6 +640,8 @@ export default {
                 <div>
                   <v-label>Email</v-label>
                   <v-text-field
+                    v-model="patientForm.email"
+                    :rules="[emailRule]"
                     hide-details
                     outlined
                     dense
@@ -519,12 +657,14 @@ export default {
                     style="height: 60%"
                   >
                     <v-checkbox
+                      v-model="patientForm.isMarketingPurpose"
                       class="m-checkbox caption-1 bold"
                       label="Marketing purpose"
                       color="#F3BC51"
                       hide-details
                     />
                     <v-checkbox
+                      v-model="patientForm.isCancelSubscription"
                       class="m-checkbox caption-1 bold"
                       label="Cancel subscription"
                       color="#F3BC51"
@@ -560,6 +700,7 @@ export default {
                       Chi
                     </v-btn>
                     <v-checkbox
+                      v-model="patientForm.isRefuseSms"
                       class="m-checkbox caption-1 bold"
                       label="Refuse SMS"
                       color="#F3BC51"
@@ -581,6 +722,16 @@ export default {
                   form-number="1"
                   :relationships="relationships"
                   :fetching-options="fetchingOptions"
+                  :name="patientForm.nextOfKin1Name"
+                  :relationshipId="patientForm.nextOfKin1RelationshipId"
+                  :contactNumber="patientForm.nextOfKin1ContactNumber"
+                  :smsNumber="patientForm.nextOfKin1SmsNumber"
+                  :remarks="patientForm.nextOfKin1Remark"
+                  @update:name="val => (patientForm.nextOfKin1Name = val)"
+                  @update:relationshipId="val => (patientForm.nextOfKin1RelationshipId = val)"
+                  @update:contactNumber="val => (patientForm.nextOfKin1ContactNumber = val)"
+                  @update:smsNumber="val => (patientForm.nextOfKin1SmsNumber = val)"
+                  @update:remarks="val => (patientForm.nextOfKin1Remark = val)"
                   required
                 />
 
@@ -588,12 +739,32 @@ export default {
                   form-number="2"
                   :relationships="relationships"
                   :fetching-options="fetchingOptions"
+                  :name="patientForm.nextOfKin2Name"
+                  :relationshipId="patientForm.nextOfKin2RelationshipId"
+                  :contactNumber="patientForm.nextOfKin2ContactNumber"
+                  :smsNumber="patientForm.nextOfKin2SmsNumber"
+                  :remarks="patientForm.nextOfKin2Remark"
+                  @update:name="val => (patientForm.nextOfKin2Name = val)"
+                  @update:relationshipId="val => (patientForm.nextOfKin2RelationshipId = val)"
+                  @update:contactNumber="val => (patientForm.nextOfKin2ContactNumber = val)"
+                  @update:smsNumber="val => (patientForm.nextOfKin2SmsNumber = val)"
+                  @update:remarks="val => (patientForm.nextOfKin2Remark = val)"
                 />
 
                 <next-of-kin-form
                   form-number="3"
                   :relationships="relationships"
                   :fetching-options="fetchingOptions"
+                  :name="patientForm.nextOfKin2Name"
+                  :relationshipId="patientForm.nextOfKin2RelationshipId"
+                  :contactNumber="patientForm.nextOfKin2ContactNumber"
+                  :smsNumber="patientForm.nextOfKin2SmsNumber"
+                  :remarks="patientForm.nextOfKin2Remark"
+                  @update:name="val => (patientForm.nextOfKin3Name = val)"
+                  @update:relationshipId="val => (patientForm.nextOfKin3RelationshipId = val)"
+                  @update:contactNumber="val => (patientForm.nextOfKin3ContactNumber = val)"
+                  @update:smsNumber="val => (patientForm.nextOfKin3SmsNumber = val)"
+                  @update:remarks="val => (patientForm.nextOfKin3Remark = val)"
                 />
               </div>
             </div>
@@ -604,6 +775,7 @@ export default {
               </div>
               <div class="form-content split-columns">
                 <v-checkbox
+                  v-model="patientForm.isSensitive"
                   class="m-checkbox caption-1 colspan-full bold"
                   label="Sensitive Patient"
                   color="#F3BC51"
@@ -620,7 +792,7 @@ export default {
 
                 <v-checkbox
                   v-model="patientForm.isPersonaNonGrata"
-                  class="m-checkbox caption-1 bold"
+                  class="m-checkbox caption-1"
                   label="Persona Non-Grata"
                   color="#F3BC51"
                   hide-details
@@ -628,6 +800,7 @@ export default {
                 />
 
                 <v-textarea
+                  v-model="patientForm.outstandingBillReason"
                   :filled="!patientForm.isOutstandingBill"
                   :disabled="!patientForm.isOutstandingBill"
                   style="border-radius: 7px"
@@ -638,6 +811,7 @@ export default {
                 />
 
                 <v-textarea
+                  v-model="patientForm.personaNonGrataReason"
                   :filled="!patientForm.isPersonaNonGrata"
                   style="border-radius: 7px"
                   outlined
@@ -654,6 +828,7 @@ export default {
 
       <address-form-dialog
         :show-dialog="addressFormDialogShowing"
+        @on-save="saveAddress"
         @on-close="addressFormDialogShowing = false"
       />
 
@@ -665,6 +840,7 @@ export default {
           color="primary"
           rounded
           outlined
+          :disabled="isSubmitting"
           @click="confirmCancel"
           >Cancel</v-btn
         >
@@ -673,6 +849,8 @@ export default {
           class="no-cap"
           color="primary"
           rounded
+          :loading="isSubmitting"
+          :disabled="isSubmitting"
           @click="handleFormSubmission"
         >
           <v-icon
@@ -811,11 +989,16 @@ export default {
 .colspan-full {
   grid-column: 1 / -1;
 }
-.doc-num-input-group {
+.selection-text-group {
   display: grid;
   grid-template-rows: 1fr;
-  grid-template-columns: 20% 1fr;
   gap: 4px;
+}
+.doc-num {
+  grid-template-columns: 20% 1fr;
+}
+.mobile-num {
+  grid-template-columns: 30% 1fr;
 }
 
 .chip-row {
@@ -839,6 +1022,11 @@ export default {
   color: var(--text-secondary);
   align-self: center;
   justify-self: center;
+}
+
+.textarea-no-spacing {
+  padding: 0 12px;
+  margin-top: 0;
 }
 
 @media (width >= 1400px) {

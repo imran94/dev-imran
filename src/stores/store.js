@@ -7,35 +7,32 @@ export const store = new Vuex.Store({
     state: {
         count: 0,
         isSeparateMailingAddress: false,
-        address: {
-            resident: {
-                zone: '',
-                district: '',
-                subDistrict: '',
-                street: '',
-                village: '',
-                estate: '',
-                block: '',
-                floor: '',
-                flat: ''
-            },
-            mailing: {
-                zone: '',
-                district: '',
-                subDistrict: '',
-                street: '',
-                village: '',
-                estate: '',
-                block: '',
-                floor: '',
-                flat: ''
-            }
-        }
+
+        addressFields: {
+            residentStructureAddressZone: 'mzone',
+            residentStructureAddressDistrict: '',
+            residentStructureAddressSubdistrict: '',
+            residentStructureAddressStreet: '',
+            residentStructureAddressVillage: '',
+            residentStructureAddressEstate: '',
+            residentStructureAddressBlock: '',
+            residentStructureAddressFloor: '',
+            residentStructureAddressFlat: '',
+            mailingStructureAddressZone: '',
+            mailingStructureAddressDistrict: '',
+            mailingStructureAddressSubdistrict: '',
+            mailingStructureAddressStreet: '',
+            mailingStructureAddressVillage: '',
+            mailingStructureAddressEstate: '',
+            mailingStructureAddressBlock: '',
+            mailingStructureAddressFloor: '',
+            mailingStructureAddressFlat: '',
+        },
     },
     getters: {
         // ...
-        getAddressByTypeAndKey: (state) => (addressType, key) => {
-            return state.address[addressType][key]
+        getAddressFieldByTypeAndKey: (state) => ({ addressType, key }) => {
+            return state.addressFields[`${addressType}StructureAddress${key}`]
         }
     },
     mutations: {
@@ -49,63 +46,46 @@ export const store = new Vuex.Store({
         },
         updateIsSeparateMailingAddress(state, value) {
             state.isSeparateMailingAddress = value
-        },
-        updateAddressByTypeAndKeyValue(state, addressType, key, value) {
-            console.log(`addressType: ${addressType} - key: ${key} - value: ${value}`)
-            state.address[addressType][key] = value
-            console.log(state.address[addressType][key])
-            if (addressType === 'resident' &&
-                !state.isSeparateMailingAddress) {
-                state.address.mailing[key] = value
+            if (!value) {
+                state.addressFields.mailingStructureAddressZone = state.addressFields.residentStructureAddressZone
+                state.addressFields.mailingStructureAddressDistrict = state.addressFields.residentStructureAddressDistrict
+                state.addressFields.mailingStructureAddressSubdistrict = state.addressFields.residentStructureAddressSubdistrict
+                state.addressFields.mailingStructureAddressStreet = state.addressFields.residentStructureAddressStreet
+                state.addressFields.mailingStructureAddressVillage = state.addressFields.residentStructureAddressVillage
+                state.addressFields.mailingStructureAddressEstate = state.addressFields.residentStructureAddressEstate
+                state.addressFields.mailingStructureAddressBlock = state.addressFields.residentStructureAddressBlock
+                state.addressFields.mailingStructureAddressFloor = state.addressFields.residentStructureAddressFloor
+                state.addressFields.mailingStructureAddressFlat = state.addressFields.residentStructureAddressFlat
+            } else {
+                state.addressFields.mailingStructureAddressZone = ''
+                state.addressFields.mailingStructureAddressDistrict = ''
+                state.addressFields.mailingStructureAddressSubdistrict = ''
+                state.addressFields.mailingStructureAddressStreet = ''
+                state.addressFields.mailingStructureAddressVillage = ''
+                state.addressFields.mailingStructureAddressEstate = ''
+                state.addressFields.mailingStructureAddressBlock = ''
+                state.addressFields.mailingStructureAddressFloor = ''
+                state.addressFields.mailingStructureAddressFlat = ''
             }
         },
+        updateAddressFieldByTypeAndKeyValue(state, {
+            addressType,
+            key,
+            value
+        }) {
+            state.addressFields[`${addressType}StructureAddress${key}`] = value
 
-        updateResidentdistrict(state, value) {
-            state.address.resident.district = value
-            if (!state.isSeparateMailingAddress) {
-                state.address.mailing.district = value
+            if (addressType !== 'mailing' &&
+                !state.isSeparateMailingAddress) {
+                state.addressFields[`mailingStructureAddress${key}`] = value
             }
         },
-        updateResidentsubDistrict(state, value) {
-            state.address.resident.subDistrict = value
-            if (!state.isSeparateMailingAddress) {
-                state.address.mailing.subDistrict = value
-            }
-        },
-        updateResidentstreet(state, value) {
-            state.address.resident.street = value
-            if (!state.isSeparateMailingAddress) {
-                state.address.mailing.street = value
-            }
-        },
-        updateResidentvillage(state, value) {
-            state.address.resident.village = value
-            if (!state.isSeparateMailingAddress) {
-                state.address.mailing.village = value
-            }
-        },
-        updateResidentestate(state, value) {
-            state.address.resident.state = value
-            if (!state.isSeparateMailingAddress) {
-                state.address.mailing.state = value
-            }
-        },
-        updateResidentblock(state, value) {
-            state.address.resident.block = value
-            if (!state.isSeparateMailingAddress) {
-                state.address.mailing.block = value
-            }
-        },
-        updateResidentfloor(state, value) {
-            state.address.resident.floor = value
-            if (!state.isSeparateMailingAddress) {
-                state.address.mailing.floor = value
-            }
-        },
-        updateResidentflat(state, value) {
-            state.address.resident.flat = value
-            if (!state.isSeparateMailingAddress) {
-                state.address.mailing.flat = value
+        setAddressFieldsFromPatientData(state, patientForm) {
+            state.isSeparateMailingAddress = patientForm.isSeparateMailingAddress
+            for (const [key, value] of Object.entries(patientForm)) {
+                if (key in state.addressFields) {
+                    state.addressFields[key] = value
+                }
             }
         }
     }
