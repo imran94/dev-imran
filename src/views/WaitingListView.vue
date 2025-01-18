@@ -5,9 +5,9 @@
 
       <v-btn
         color="primary"
-        class="white--text footnote no-cap"
+        class="white--text footnote no-cap custom-btn-padding"
         rounded
-        @click="patientFormDialog = true"
+        @click="handleCreatePatientClick"
       >
         <v-icon
           left
@@ -52,12 +52,15 @@
       />
 
       <patient-details
-        v-if="patientAdditionalInfo !== null"
+        v-if="patientAdditionalInfo"
         :details="patientAdditionalInfo"
+        :loading="isLoadingPatientDetails"
+        @on-patient-details-selected="handlePatientDetailsSelection"
       />
     </div>
     <patient-form-dialog
       :show-dialog="patientFormDialog"
+      :patient-id="selectedPatientId"
       @on-close="patientFormDialog = false"
     />
   </div>
@@ -89,8 +92,10 @@ export default {
     searching: false,
     patients: [],
     selectedPatient: null,
+    selectedPatientId: null,
     patientAdditionalInfo: null,
-    patientFormDialog: false
+    patientFormDialog: false,
+    isLoadingPatientDetails: false
   }),
   methods: {
     toggleMenu() {},
@@ -123,12 +128,30 @@ export default {
         return
       }
 
+      this.isLoadingPatientDetails = true
       this.selectedPatient = patient
 
-      const url = new URL(`Patients/${patient.id}/AdditionalInfo`, BASE_URL)
-      const res = await fetch(url)
-      const data = await res.json()
-      this.patientAdditionalInfo = data
+      try {
+        const url = new URL(`Patients/${patient.id}/AdditionalInfo`, BASE_URL)
+        const res = await fetch(url)
+        const data = await res.json()
+        this.patientAdditionalInfo = data
+      } catch (e) {
+        console.error('Error occurred while loading patient details', e)
+      }
+      this.isLoadingPatientDetails = false
+    },
+    handlePatientDetailsSelection() {
+      if (!this.selectedPatient) {
+        return
+      }
+
+      this.selectedPatientId = this.selectedPatient.id
+      this.patientFormDialog = true
+    },
+    handleCreatePatientClick() {
+      this.selectedPatientId = null
+      this.patientFormDialog = true
     }
   },
   computed: {}

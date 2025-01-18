@@ -15,11 +15,13 @@ const dateInputRegex = /^\d{2}\/\d{2}\/\d{4}$/
 const dateCharInputRegex = /\d|\//
 const actionKeyRegex = /Arrow*|Backspace|Home|End|Enter|Tab|Delete/
 
+let backupPatientForm = blankPatient()
+
 export default {
   components: { NextOfKinForm, AddressFormDialog },
   props: {
     showDialog: Boolean,
-    patiendId: Number
+    patientId: Number
   },
   emits: ['on-close'],
   data() {
@@ -38,10 +40,9 @@ export default {
       showDOBMenu: false,
       addressFormDialogShowing: false,
       userDOB: '',
-      minDobDate: '1925-01-01',
+      minDobDate: '1900-01-01',
       maxDobDate: new Date().toISOString(),
 
-      requiredRule: v => !!v,
       dobRules: [
         v => {
           if (!dateInputRegex.test(v)) {
@@ -70,18 +71,21 @@ export default {
         }
         return true
       },
+      requiredRule: v => !!v,
 
       // Form Data
       valid: true,
       patientForm: blankPatient(),
-      isSubmitting: false
+      isEditing: false,
+      isSubmitting: false,
+      isLoadingData: false
     }
   },
   computed: {
     formattedDate() {
       if (!this.patientForm.dateOfBirth) return null
 
-      const [year, month, day] = this.patientForm.dateOfBirth.split('-')
+      const [year, month, day] = this.patientForm.dateOfBirth.substring(0, 10).split('-')
       return `${day}/${month}/${year}`
     },
     fullResidentAddress() {
@@ -151,6 +155,15 @@ export default {
         addressStr += this.patientForm.mailingStructureAddressZone
       }
       return addressStr
+    },
+    isFieldDisabled() {
+      return (this.patientId && !this.isEditing) || this.isSubmitting || this.isLoadingData
+    },
+    isInputFieldLoading() {
+      return this.isSubmitting || this.isLoadingData
+    },
+    isSelectionFieldLoading() {
+      return this.isSubmitting || this.isLoadingData || this.isFetchingOptions
     }
   },
   mounted() {
@@ -179,6 +192,59 @@ export default {
       this.countryCodes = countryCodes
 
       this.fetchingOptions = false
+    },
+    async handleFormSubmission() {
+      this.isSubmitting = true
+
+      this.$refs.form.validate()
+      if (!this.valid) {
+        this.isSubmitting = false
+        return
+      }
+
+      let endpoint = 'Patients'
+      if (this.patientId) {
+        endpoint += '/' + this.patientId
+      }
+      const url = new URL(endpoint, BASE_URL)
+      const method = this.patientId ? 'PUT' : 'POST'
+      try {
+        const res = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          },
+          method: method,
+          body: JSON.stringify(this.patientForm)
+        })
+        console.log(`${method} res`, res)
+        const data = await res.json()
+        console.log(`${method} data`, data)
+      } catch (err) {
+        console.error(err)
+      }
+
+      this.isSubmitting = false
+    },
+    async fetchPatient() {
+      this.isLoadingData = true
+
+      const url = new URL(`Patients/${this.patientId}`, BASE_URL)
+      try {
+        const res = await fetch(url)
+        console.log('fetchPatientById res', res)
+        this.patientForm = await res.json()
+        backupPatientForm = { ...this.patientForm }
+
+        if (this.patientForm.dateOfBirth) {
+          this.userDOB = this.formattedDate
+        }
+        // console.log('fetchPatientById data', data)
+      } catch (e) {
+        console.err('Error occurred while fetching patient by id', e)
+      }
+
+      this.isLoadingData = false
     },
     handleDOBInput(dob) {
       if (dob.length === 3 && dob.charAt(dob.length - 1) !== '/') {
@@ -266,40 +332,42 @@ export default {
       }
       // this.$store.
     },
-    async handleFormSubmission() {
-      this.isSubmitting = true
-
-      this.$refs.form.validate()
-      if (!this.valid) {
-        this.isSubmitting = false
+    promptCancelConfirmation() {
+      if (this.patientId && this.isEditing) {
+        this.cancellationDialog = true
         return
       }
 
-      const url = new URL('Patients', BASE_URL)
-      try {
-        const res = await fetch(url, {
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json'
-          },
-          method: 'POST',
-          body: JSON.stringify(this.patientForm)
-        })
-        console.log('POST res', res)
-        const data = await res.json()
-        console.log('POST data', data)
-      } catch (err) {
-        console.error(err)
+      this.closeFormDialog()
+    },
+    cancelEdit() {
+      if (!this.patientId) {
+        this.closeFormDialog()
+        return
       }
 
-      this.isSubmitting = false
-    },
-    confirmCancel() {
-      this.cancellationDialog = true
+      this.patientForm = {
+        ...backupPatientForm
+      }
+      this.isEditing = false
+      this.cancellationDialog = false
     },
     closeFormDialog() {
       this.cancellationDialog = false
       this.$emit('on-close')
+    }
+  },
+  watch: {
+    patientId(newId, oldId) {
+      this.isEditing = false
+
+      if (!newId) {
+        this.patientForm = blankPatient()
+        this.userDOB = ''
+        return
+      }
+
+      this.fetchPatient()
     }
   }
 }
@@ -322,7 +390,7 @@ export default {
         </v-btn>
       </v-card-title>
 
-      <v-divider class="divider" />
+      <v-divider class="divider-top" />
 
       <v-card-text>
         <v-form
@@ -333,7 +401,7 @@ export default {
         >
           <div class="form-column">
             <div class="form-section">
-              <div class="card-header">
+              <div class="form-header">
                 <div class="form-section-title">Personal Information</div>
               </div>
               <div class="form-content split-columns">
@@ -341,7 +409,7 @@ export default {
                   <v-label for="doc-num">Document No.<span class="alert-text">*</span></v-label>
                   <div class="selection-text-group doc-num">
                     <v-select
-                      v-model="patientForm.documentTypeId"
+                      v-model.trim="patientForm.documentTypeId"
                       :rules="[requiredRule]"
                       hide-details
                       class="caption-1"
@@ -355,11 +423,12 @@ export default {
                         bottom: true,
                         offsetY: true
                       }"
-                      :loading="fetchingOptions"
-                      :disabled="fetchingOptions"
+                      :loading="isSelectionFieldLoading"
+                      :disabled="isFieldDisabled"
+                      :filled="isSelectionFieldLoading || isFieldDisabled"
                     />
                     <v-text-field
-                      v-model="patientForm.documentNumber"
+                      v-model.trim="patientForm.documentNumber"
                       :rules="[requiredRule]"
                       id="doc-num"
                       hide-details
@@ -367,42 +436,54 @@ export default {
                       dense
                       clearable
                       placeholder="Document No."
+                      :loading="isInputFieldLoading"
+                      :disabled="isFieldDisabled"
+                      :filled="isFieldDisabled"
                     />
                   </div>
                 </div>
                 <div>
                   <v-label>Surname<span class="alert-text">*</span></v-label>
                   <v-text-field
-                    v-model="patientForm.surname"
+                    v-model.trim="patientForm.surname"
                     :rules="[requiredRule]"
                     hide-details
                     outlined
                     dense
                     clearable
                     placeholder="Surname"
+                    :loading="isInputFieldLoading"
+                    :disabled="isFieldDisabled"
+                    :filled="isFieldDisabled"
                   />
                 </div>
                 <div>
                   <v-label>Given Name<span class="alert-text">*</span></v-label>
                   <v-text-field
-                    v-model="patientForm.givenName"
+                    v-model.trim="patientForm.givenName"
                     :rules="[requiredRule]"
                     hide-details
                     outlined
                     dense
                     clearable
                     placeholder="Given Name"
+                    :loading="isInputFieldLoading"
+                    :disabled="isFieldDisabled"
+                    :filled="isFieldDisabled"
                   />
                 </div>
                 <div>
                   <v-label>中文姓名</v-label>
                   <v-text-field
-                    v-model="patientForm.chineseName"
+                    v-model.trim="patientForm.chineseName"
                     hide-details
                     outlined
                     dense
                     clearable
                     placeholder="中文姓名"
+                    :loading="isInputFieldLoading"
+                    :disabled="isFieldDisabled"
+                    :filled="isFieldDisabled"
                   />
                 </div>
                 <div>
@@ -447,14 +528,17 @@ export default {
                     <template v-slot:activator="{ on, attrs }">
                       <v-text-field
                         :value="userDOB"
-                        @input="handleDOBInput"
-                        @keydown="filterDateInput"
                         hide-details
                         outlined
                         dense
                         append-icon="mdi-calendar"
                         placeholder="DD/MM/YYYY"
                         :rules="dobRules"
+                        :loading="isInputFieldLoading"
+                        :disabled="isFieldDisabled"
+                        :filled="isFieldDisabled"
+                        @input="handleDOBInput"
+                        @keydown="filterDateInput"
                         @click:append="showDOBMenu = true"
                       ></v-text-field>
                     </template>
@@ -472,10 +556,13 @@ export default {
                     hide-details
                     outlined
                     dense
-                    v-model="patientForm.occupation"
+                    v-model.trim="patientForm.occupation"
                     :items="occupations"
                     item-text="description"
                     placeholder="Occupation"
+                    :loading="isSelectionFieldLoading"
+                    :disabled="isFieldDisabled"
+                    :filled="isSelectionFieldLoading || isFieldDisabled"
                   />
                 </div>
                 <div>
@@ -486,7 +573,7 @@ export default {
                     outlined
                     dense
                     placeholder="Nationality"
-                    v-model="patientForm.nationalityId"
+                    v-model.trim="patientForm.nationalityId"
                     :items="nationalities"
                     item-text="description"
                     item-value="id"
@@ -495,26 +582,30 @@ export default {
                       offsetY: true
                     }"
                     :rules="[requiredRule]"
-                    :loading="fetchingOptions"
-                    :disabled="fetchingOptions"
+                    :loading="isSelectionFieldLoading"
+                    :disabled="isFieldDisabled"
+                    :filled="isSelectionFieldLoading || isFieldDisabled"
                   />
                 </div>
                 <div>
                   <v-label>PR No.</v-label>
                   <v-text-field
-                    v-model="patientForm.prNumber"
+                    v-model.trim="patientForm.prNumber"
                     hide-details
                     outlined
                     dense
                     clearable
                     placeholder="PR No."
+                    :loading="isInputFieldLoading"
+                    :disabled="isFieldDisabled"
+                    :filled="isFieldDisabled"
                   />
                 </div>
                 <div>
                   <v-label>Mobile No.<span class="alert-text">*</span></v-label>
                   <div class="selection-text-group mobile-num">
                     <v-select
-                      v-model="patientForm.mobileCountryCodeId"
+                      v-model.trim="patientForm.mobileCountryCodeId"
                       :rules="[requiredRule]"
                       hide-details
                       class="caption-1"
@@ -528,11 +619,12 @@ export default {
                         bottom: true,
                         offsetY: true
                       }"
-                      :loading="fetchingOptions"
-                      :disabled="fetchingOptions"
+                      :loading="isSelectionFieldLoading"
+                      :disabled="isFieldDisabled"
+                      :filled="isSelectionFieldLoading || isFieldDisabled"
                     />
                     <v-text-field
-                      v-model="patientForm.mobileNumber"
+                      v-model.trim="patientForm.mobileNumber"
                       @keydown="filterNumInput"
                       hide-details
                       outlined
@@ -540,31 +632,39 @@ export default {
                       clearable
                       placeholder="Mobile No."
                       :rules="[requiredRule]"
+                      :loading="isInputFieldLoading"
+                      :disabled="isFieldDisabled"
+                      :filled="isFieldDisabled"
                     />
                   </div>
                 </div>
                 <div>
                   <v-label>Tel No. (Home)</v-label>
                   <v-text-field
-                    v-model="patientForm.homeTelNo"
+                    v-model.trim="patientForm.homeTelNo"
+                    @keydown="filterNumInput"
                     hide-details
                     outlined
                     dense
                     clearable
                     placeholder="Tel No. (Home)"
+                    :loading="isInputFieldLoading"
+                    :disabled="isFieldDisabled"
+                    :filled="isFieldDisabled"
                   />
                 </div>
               </div>
             </div>
 
             <div class="form-section">
-              <div class="card-header">
+              <div class="form-header">
                 <div class="form-section-title">Address</div>
                 <v-btn
                   small
                   color="primary"
                   class="white--text caption-2 no-cap"
                   rounded
+                  :disabled="isFieldDisabled"
                   @click="showAddressFormDialog"
                 >
                   <v-icon
@@ -628,25 +728,31 @@ export default {
                 <div>
                   <v-label>Remarks</v-label>
                   <v-text-field
-                    v-model="patientForm.remark"
+                    v-model.trim="patientForm.remark"
                     hide-details
                     outlined
                     dense
                     clearable
                     placeholder="Remarks"
+                    :loading="isInputFieldLoading"
+                    :disabled="isFieldDisabled"
+                    :filled="isFieldDisabled"
                   />
                 </div>
 
                 <div>
                   <v-label>Email</v-label>
                   <v-text-field
-                    v-model="patientForm.email"
+                    v-model.trim="patientForm.email"
                     :rules="[emailRule]"
                     hide-details
                     outlined
                     dense
                     clearable
                     placeholder="Email"
+                    :loading="isInputFieldLoading"
+                    :disabled="isFieldDisabled"
+                    :filled="isFieldDisabled"
                   />
                 </div>
 
@@ -658,17 +764,21 @@ export default {
                   >
                     <v-checkbox
                       v-model="patientForm.isMarketingPurpose"
-                      class="m-checkbox caption-1 bold"
+                      class="m-checkbox caption-1"
+                      :class="{ bold: !isFieldDisabled }"
                       label="Marketing purpose"
                       color="#F3BC51"
                       hide-details
+                      :disabled="isFieldDisabled"
                     />
                     <v-checkbox
                       v-model="patientForm.isCancelSubscription"
-                      class="m-checkbox caption-1 bold"
+                      class="m-checkbox caption-1"
+                      :class="{ bold: !isFieldDisabled }"
                       label="Cancel subscription"
                       color="#F3BC51"
                       hide-details
+                      :disabled="isFieldDisabled"
                     />
                   </div>
                 </div>
@@ -682,8 +792,9 @@ export default {
                       style="font-weight: 700"
                       class="caption-2 no-cap"
                       :outlined="patientForm.smsLanguage !== 'Eng'"
-                      @click="patientForm.smsLanguage = 'Eng'"
                       :color="resolveChoiceButtonColor(patientForm.smsLanguage, 'Eng')"
+                      :disabled="isFieldDisabled"
+                      @click="patientForm.smsLanguage = 'Eng'"
                     >
                       Eng
                     </v-btn>
@@ -694,17 +805,20 @@ export default {
                       style="font-weight: 700"
                       class="caption-2 no-cap"
                       :outlined="patientForm.smsLanguage !== 'Chi'"
-                      @click="patientForm.smsLanguage = 'Chi'"
                       :color="resolveChoiceButtonColor(patientForm.smsLanguage, 'Chi')"
+                      :disabled="isFieldDisabled"
+                      @click="patientForm.smsLanguage = 'Chi'"
                     >
                       Chi
                     </v-btn>
                     <v-checkbox
                       v-model="patientForm.isRefuseSms"
-                      class="m-checkbox caption-1 bold"
+                      class="m-checkbox caption-1"
+                      :class="{ bold: !isFieldDisabled }"
                       label="Refuse SMS"
                       color="#F3BC51"
                       hide-details
+                      :disabled="isFieldDisabled"
                     />
                   </div>
                 </div>
@@ -714,36 +828,40 @@ export default {
 
           <div class="form-column">
             <div class="form-section">
-              <div class="card-header">
+              <div class="form-header">
                 <div class="form-section-title">Next of Kin</div>
               </div>
               <div class="form-content next-of-kin-section">
                 <next-of-kin-form
                   form-number="1"
                   :relationships="relationships"
-                  :fetching-options="fetchingOptions"
                   :name="patientForm.nextOfKin1Name"
                   :relationshipId="patientForm.nextOfKin1RelationshipId"
                   :contactNumber="patientForm.nextOfKin1ContactNumber"
                   :smsNumber="patientForm.nextOfKin1SmsNumber"
                   :remarks="patientForm.nextOfKin1Remark"
-                  @update:name="val => (patientForm.nextOfKin1Name = val)"
-                  @update:relationshipId="val => (patientForm.nextOfKin1RelationshipId = val)"
-                  @update:contactNumber="val => (patientForm.nextOfKin1ContactNumber = val)"
-                  @update:smsNumber="val => (patientForm.nextOfKin1SmsNumber = val)"
-                  @update:remarks="val => (patientForm.nextOfKin1Remark = val)"
+                  :disabled="isFieldDisabled"
+                  :loading="isInputFieldLoading"
+                  :selection-loading="isSelectionFieldLoading"
+                  @update:name="val => (patientForm.nextOfKin1Name = val.trim())"
+                  @update:relationshipId="val => (patientForm.nextOfKin1RelationshipId = val.trim())"
+                  @update:contactNumber="val => (patientForm.nextOfKin1ContactNumber = val.trim())"
+                  @update:smsNumber="val => (patientForm.nextOfKin1SmsNumber = val.trim())"
+                  @update:remarks="val => (patientForm.nextOfKin1Remark = val.trim())"
                   required
                 />
 
                 <next-of-kin-form
                   form-number="2"
                   :relationships="relationships"
-                  :fetching-options="fetchingOptions"
                   :name="patientForm.nextOfKin2Name"
                   :relationshipId="patientForm.nextOfKin2RelationshipId"
                   :contactNumber="patientForm.nextOfKin2ContactNumber"
                   :smsNumber="patientForm.nextOfKin2SmsNumber"
                   :remarks="patientForm.nextOfKin2Remark"
+                  :disabled="isFieldDisabled"
+                  :loading="isInputFieldLoading"
+                  :selection-loading="isSelectionFieldLoading"
                   @update:name="val => (patientForm.nextOfKin2Name = val)"
                   @update:relationshipId="val => (patientForm.nextOfKin2RelationshipId = val)"
                   @update:contactNumber="val => (patientForm.nextOfKin2ContactNumber = val)"
@@ -754,12 +872,14 @@ export default {
                 <next-of-kin-form
                   form-number="3"
                   :relationships="relationships"
-                  :fetching-options="fetchingOptions"
-                  :name="patientForm.nextOfKin2Name"
-                  :relationshipId="patientForm.nextOfKin2RelationshipId"
-                  :contactNumber="patientForm.nextOfKin2ContactNumber"
-                  :smsNumber="patientForm.nextOfKin2SmsNumber"
-                  :remarks="patientForm.nextOfKin2Remark"
+                  :name="patientForm.nextOfKin3Name"
+                  :relationshipId="patientForm.nextOfKin3RelationshipId"
+                  :contactNumber="patientForm.nextOfKin3ContactNumber"
+                  :smsNumber="patientForm.nextOfKin3SmsNumber"
+                  :remarks="patientForm.nextOfKin3Remark"
+                  :disabled="isFieldDisabled"
+                  :loading="isInputFieldLoading"
+                  :selection-loading="isSelectionFieldLoading"
                   @update:name="val => (patientForm.nextOfKin3Name = val)"
                   @update:relationshipId="val => (patientForm.nextOfKin3RelationshipId = val)"
                   @update:contactNumber="val => (patientForm.nextOfKin3ContactNumber = val)"
@@ -776,18 +896,22 @@ export default {
               <div class="form-content split-columns">
                 <v-checkbox
                   v-model="patientForm.isSensitive"
-                  class="m-checkbox caption-1 colspan-full bold"
+                  class="m-checkbox caption-1 colspan-full"
+                  :class="{ bold: !isFieldDisabled }"
                   label="Sensitive Patient"
                   color="#F3BC51"
                   hide-details
+                  :disabled="isFieldDisabled"
                 />
 
                 <v-checkbox
                   v-model="patientForm.isOutstandingBill"
-                  class="m-checkbox caption-1 bold"
+                  class="m-checkbox caption-1"
+                  :class="{ bold: !isFieldDisabled }"
                   label="Outstanding Bill"
                   color="#F3BC51"
                   hide-details
+                  :disabled="isFieldDisabled"
                 />
 
                 <v-checkbox
@@ -812,7 +936,7 @@ export default {
 
                 <v-textarea
                   v-model="patientForm.personaNonGrataReason"
-                  :filled="!patientForm.isPersonaNonGrata"
+                  filled
                   style="border-radius: 7px"
                   outlined
                   hide-details
@@ -832,26 +956,16 @@ export default {
         @on-close="addressFormDialogShowing = false"
       />
 
-      <v-divider class="divider" />
+      <v-divider class="divider-bottom" />
 
-      <v-card-actions style="justify-content: flex-end">
+      <v-card-actions class="card-buttons-grid">
         <v-btn
-          class="no-cap"
-          color="primary"
+          class="custom-btn-padding-small no-cap"
+          v-show="patientId && !isEditing"
+          color="warning"
           rounded
-          outlined
           :disabled="isSubmitting"
-          @click="confirmCancel"
-          >Cancel</v-btn
-        >
-
-        <v-btn
-          class="no-cap"
-          color="primary"
-          rounded
-          :loading="isSubmitting"
-          :disabled="isSubmitting"
-          @click="handleFormSubmission"
+          @click="isEditing = true"
         >
           <v-icon
             left
@@ -859,8 +973,39 @@ export default {
           >
             mdi-content-save-outline
           </v-icon>
-          Save
+          Edit
         </v-btn>
+
+        <div class="inline-btn-group">
+          <v-btn
+            class="custom-btn-padding no-cap"
+            color="primary"
+            rounded
+            outlined
+            :disabled="isSubmitting"
+            @click="promptCancelConfirmation"
+          >
+            Cancel
+          </v-btn>
+
+          <v-btn
+            class="custom-btn-padding no-cap"
+            v-show="!patientId || (patientId && isEditing)"
+            color="primary"
+            rounded
+            :loading="isSubmitting"
+            :disabled="isSubmitting || (patientId && !isEditing)"
+            @click="handleFormSubmission"
+          >
+            <v-icon
+              left
+              dark
+            >
+              mdi-content-save-outline
+            </v-icon>
+            Save
+          </v-btn>
+        </div>
       </v-card-actions>
 
       <v-dialog
@@ -880,14 +1025,14 @@ export default {
               rounded
               outlined
               @click="cancellationDialog = false"
-              >No</v-btn
+              >Back</v-btn
             >
 
             <v-btn
               class="no-cap"
               color="primary"
               rounded
-              @click="closeFormDialog"
+              @click="cancelEdit"
             >
               <v-icon
                 left
@@ -895,7 +1040,7 @@ export default {
               >
                 mdi-check
               </v-icon>
-              Yes
+              Confirm
             </v-btn>
           </v-card-actions>
         </v-card>
@@ -905,8 +1050,13 @@ export default {
 </template>
 
 <style scoped>
-.divider {
-  margin: 12px 8px;
+.divider-top {
+  margin: 12px;
+}
+
+.divider-bottom {
+  margin-top: 12px;
+  margin-bottom: 4px;
 }
 
 .v-text-field .v-input__control .v-input__slot {
@@ -1027,6 +1177,27 @@ export default {
 .textarea-no-spacing {
   padding: 0 12px;
   margin-top: 0;
+}
+
+.card-buttons-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.card-buttons-grid > * {
+  width: fit-content;
+}
+
+.inline-btn-group {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  justify-self: end;
+  gap: 8px;
+  grid-column: 2;
 }
 
 @media (width >= 1400px) {

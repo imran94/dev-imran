@@ -4,8 +4,10 @@ import { formatDatetime } from '../../utils/formatters'
 
 export default {
   props: {
-    details: Object
+    details: Object,
+    loading: Boolean
   },
+  emits: ['on-patient-details-selected'],
   methods: {
     getDateString(timestamp) {
       return formatDate(timestamp)
@@ -22,9 +24,11 @@ export default {
     <div class="patient-details-buttons">
       <v-btn
         color="primary"
-        class="white--text caption-2 no-cap"
+        class="white--text caption-2 no-cap custom-btn-padding-small"
         rounded
         small
+        :disabled="loading"
+        @click="$emit('on-patient-details-selected')"
       >
         <v-icon
           left
@@ -37,9 +41,10 @@ export default {
 
       <v-btn
         color="primary"
-        class="white--text caption-2 no-cap"
+        class="white--text caption-2 no-cap custom-btn-padding-small"
         rounded
         small
+        :disabled="loading"
       >
         <v-icon
           left
@@ -157,6 +162,7 @@ export default {
             max-width="107"
             color="primary"
             class="no-cap caption-2 btn"
+            :disabled="loading"
             >View Schedule</v-btn
           >
         </div>

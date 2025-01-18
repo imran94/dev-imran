@@ -58,7 +58,7 @@ export default {
         <div class="inline-row">
           <div class="text-primary callout">Appointments</div>
           <v-chip
-            style="padding: 4px"
+            style="padding: 4px !important"
             label
             color="primary"
             text-color="white"

@@ -6,13 +6,16 @@ export default {
     formNumber: String,
     required: Boolean,
     relationships: Array,
-    fetchingOptions: Boolean,
 
     name: String,
     relationshipId: Number,
     contactNumber: String,
     smsNumber: String,
-    remarks: String
+    remarks: String,
+
+    disabled: Boolean,
+    loading: Boolean,
+    selectionLoading: Boolean
   },
   emits: ['update:name', 'update:relationshipId', 'update:contactNumber', 'update:smsNumber', 'update:remarks'],
   data: {
@@ -57,7 +60,7 @@ export default {
 
 <template>
   <div class="main">
-    <div class="caption-1">
+    <div class="caption-1 text-secondary">
       Next of Kin {{ formNumber }}
       <span
         v-if="required"
@@ -77,6 +80,9 @@ export default {
         prepend-icon="mdi-map-marker"
         placeholder="Next of Kin Name"
         :rules="required ? [v => !!v] : []"
+        :disabled="disabled"
+        :loading="loading"
+        :filled="disabled"
       />
 
       <v-select
@@ -95,9 +101,10 @@ export default {
           bottom: true,
           offsetY: true
         }"
-        :loading="fetchingOptions"
-        :disabled="fetchingOptions"
         :rules="required ? [v => !!v] : []"
+        :loading="loading"
+        :disabled="disabled"
+        :filled="disabled || selectionLoading"
       />
       <v-text-field
         :value="contactNumber"
@@ -110,6 +117,9 @@ export default {
         placeholder="Contact Number"
         @keydown="filterNumInput"
         :rules="required ? [v => !!v] : []"
+        :disabled="disabled"
+        :loading="loading"
+        :filled="disabled"
       />
       <v-text-field
         hide-details
@@ -118,6 +128,9 @@ export default {
         clearable
         prepend-icon="mdi-map-marker"
         placeholder="SMS"
+        :disabled="disabled"
+        :loading="loading"
+        :filled="disabled"
         @keydown="filterNumInput"
       />
       <v-text-field
@@ -126,6 +139,9 @@ export default {
         dense
         clearable
         placeholder="Remarks"
+        :disabled="disabled"
+        :loading="loading"
+        :filled="disabled"
       />
     </div>
   </div>
