@@ -55,7 +55,10 @@ export default {
             {{ patient.englishName }} <span v-if="patient.chineseName">({{ patient.chineseName }})</span>
           </div>
         </div>
-        <div class="inline-row">
+        <div
+          class="inline-row"
+          v-show="patient.comingAppointment > 0"
+        >
           <div class="text-primary callout">Appointments</div>
           <v-chip
             style="padding: 4px !important"

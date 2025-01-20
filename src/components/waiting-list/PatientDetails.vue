@@ -34,7 +34,7 @@ export default {
           left
           dark
         >
-          mdi-cloud-upload
+          mdi-camera-account
         </v-icon>
         Patient Details
       </v-btn>
@@ -50,7 +50,7 @@ export default {
           left
           dark
         >
-          mdi-cloud-upload
+          mdi-note-text-outline
         </v-icon>
         Take Attendance
       </v-btn>

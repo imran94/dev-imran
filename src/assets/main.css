@@ -152,3 +152,11 @@ html,
 .custom-btn-padding-small {
   padding: 6px 8px !important;
 }
+
+.close-btn-outlined {
+  border: 1px solid #c4c4c4;
+  padding: 5px;
+  border-radius: 7px;
+  width: 34px;
+  height: 34px;
+}

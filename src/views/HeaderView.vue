@@ -8,7 +8,10 @@
     class="nav-drawer"
   >
     <v-list>
-      <v-list-item v-show="!isMenuCollapsed">
+      <v-list-item
+        tabindex="-1"
+        v-show="!isMenuCollapsed"
+      >
         <img
           class="logo"
           src="@/assets/tabnext-logo.png"
@@ -16,6 +19,7 @@
       </v-list-item>
 
       <v-list-item
+        tabindex="-1"
         v-show="isMenuCollapsed"
         class="mini-logo-container"
       >
@@ -33,13 +37,15 @@
       :style="{ width: isMenuCollapsed ? '85%' : '95%' }"
     >
       <v-list-item
+        tabindex="-1"
         link
         @click="toggleMenu"
+        style="border-radius: 7px"
         class="outlined-link align-center justify-center"
         :class="{ 'filled-link': isMenuCollapsed }"
       >
         <v-list-item-icon>
-          <v-icon :dark="isMenuCollapsed">mdi-cloud-upload</v-icon>
+          <v-icon :dark="isMenuCollapsed">mdi-backburger</v-icon>
         </v-list-item-icon>
 
         <v-list-item-content>
@@ -47,11 +53,12 @@
         </v-list-item-content>
       </v-list-item>
       <v-list-item
+        tabindex="-1"
         link
         style="border-radius: 32px !important"
       >
         <v-list-item-icon>
-          <v-icon>mdi-cloud-upload</v-icon>
+          <v-icon>mdi-home-outline</v-icon>
         </v-list-item-icon>
 
         <v-list-item-content>
@@ -68,6 +75,7 @@
       :style="{ width: isMenuCollapsed ? '85%' : '95%' }"
     >
       <v-list-item
+        tabindex="-1"
         link
         class="messages-link"
       >
@@ -76,23 +84,26 @@
             color="#EC6161"
             size="20"
             style="align-self: center"
-            ><span class="white--text">2</span></v-avatar
           >
+            <span class="white--text">2</span>
+          </v-avatar>
         </v-list-item-icon>
 
         <v-list-item-content
           class="caption-2"
           style="color: var(--text-primary)"
-          >Messages</v-list-item-content
         >
+          Messages
+        </v-list-item-content>
       </v-list-item>
 
       <v-list-item
+        tabindex="-1"
         link
         two-line
       >
         <v-list-item-icon style="align-self: center">
-          <v-icon>mdi-cloud-upload</v-icon>
+          <v-icon>mdi-account-circle-outline</v-icon>
         </v-list-item-icon>
 
         <v-list-item-content>
@@ -107,9 +118,12 @@
         </v-list-item-content>
       </v-list-item>
 
-      <v-list-item link>
+      <v-list-item
+        tabindex="-1"
+        link
+      >
         <v-list-item-icon>
-          <v-icon>mdi-cloud-upload</v-icon>
+          <v-icon>mdi-logout</v-icon>
         </v-list-item-icon>
 
         <v-list-item-content>
@@ -132,7 +146,7 @@ export default {
       this.isMenuAutoCollapsed = true
     }
 
-    addEventListener('resize', (evt) => {
+    addEventListener('resize', evt => {
       if (window.innerWidth > 1024) {
         this.isMenuAutoCollapsed = false
       }

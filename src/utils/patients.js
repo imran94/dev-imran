@@ -2,7 +2,7 @@ export const blankPatient = () => ({
     documentTypeId: null,
     nationalityId: null,
     mobileCountryCodeId: 1,
-    documentNumber: '1234',
+    documentNumber: '',
     chineseName: '',
     surname: '',
     givenName: '',

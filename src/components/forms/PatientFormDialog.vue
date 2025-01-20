@@ -10,6 +10,7 @@ import { BASE_URL } from '@/utils/network'
 import NextOfKinForm from './NextOfKinForm.vue'
 import AddressFormDialog from './AddressFormDialog.vue'
 import { blankPatient } from '../../utils/patients'
+import CustomSnackbar from '../CustomSnackbar.vue'
 
 const dateInputRegex = /^\d{2}\/\d{2}\/\d{4}$/
 const dateCharInputRegex = /\d|\//
@@ -18,12 +19,16 @@ const actionKeyRegex = /Arrow*|Backspace|Home|End|Enter|Tab|Delete/
 let backupPatientForm = blankPatient()
 
 export default {
-  components: { NextOfKinForm, AddressFormDialog },
+  components: {
+    NextOfKinForm,
+    AddressFormDialog,
+    CustomSnackbar
+  },
   props: {
     showDialog: Boolean,
     patientId: Number
   },
-  emits: ['on-close'],
+  emits: ['on-close', 'on-create-success', 'on-update-success'],
   data() {
     return {
       fetchingOptions: false,
@@ -78,7 +83,12 @@ export default {
       patientForm: blankPatient(),
       isEditing: false,
       isSubmitting: false,
-      isLoadingData: false
+      isLoadingData: false,
+
+      snackbar: false,
+      snackbarTitle: '',
+      snackbarMessage: '',
+      snackbarProgressBarColor: 'primary'
     }
   },
   computed: {
@@ -196,8 +206,8 @@ export default {
     async handleFormSubmission() {
       this.isSubmitting = true
 
-      this.$refs.form.validate()
-      if (!this.valid) {
+      const isFormValid = await this.$refs.form.validate()
+      if (!isFormValid || !this.patientForm.sex || !this.patientForm.smsLanguage) {
         this.isSubmitting = false
         return
       }
@@ -217,11 +227,35 @@ export default {
           method: method,
           body: JSON.stringify(this.patientForm)
         })
-        console.log(`${method} res`, res)
-        const data = await res.json()
-        console.log(`${method} data`, data)
+
+        if (res.ok) {
+          this.isEditing = false
+
+          if (this.patientId) {
+            this.$emit('on-update-success')
+
+            this.snackbarProgressBarColor = 'primary'
+            this.snackbarTitle = `Patient Profile Saved`
+            this.snackbarMessage = `Patient profile has been successfully updated`
+            this.snackbar = true
+          } else {
+            this.$emit('on-create-success')
+            this.$emit('on-close')
+          }
+        } else {
+          const data = await res.json()
+
+          this.snackbarProgressBarColor = 'error'
+          this.snackbarTitle = `Patient ${this.patientId ? 'Update' : 'Creation'} Error`
+          this.snackbarMessage = data
+          this.snackbar = true
+        }
       } catch (err) {
         console.error(err)
+        this.snackbarProgressBarColor = 'error'
+        this.snackbarTitle = `Patient ${this.patientId ? 'Update' : 'Creation'} Error`
+        this.snackbarMessage = `An error occurred while ${this.patientId ? 'updating' : 'creating'} patient`
+        this.snackbar = true
       }
 
       this.isSubmitting = false
@@ -232,14 +266,25 @@ export default {
       const url = new URL(`Patients/${this.patientId}`, BASE_URL)
       try {
         const res = await fetch(url)
-        console.log('fetchPatientById res', res)
         this.patientForm = await res.json()
-        backupPatientForm = { ...this.patientForm }
 
         if (this.patientForm.dateOfBirth) {
           this.userDOB = this.formattedDate
         }
-        // console.log('fetchPatientById data', data)
+
+        if (!this.patientForm.isSeparateMailingAddress) {
+          this.patientForm.mailingStructureAddressZone = this.patientForm.residentStructureAddressZone
+          this.patientForm.mailingStructureAddressDistrict = this.patientForm.residentStructureAddressDistrict
+          this.patientForm.mailingStructureAddressSubdistrict = this.patientForm.residentStructureAddressSubdistrict
+          this.patientForm.mailingStructureAddressStreet = this.patientForm.residentStructureAddressStreet
+          this.patientForm.mailingStructureAddressVillage = this.patientForm.residentStructureAddressVillage
+          this.patientForm.mailingStructureAddressEstate = this.patientForm.residentStructureAddressEstate
+          this.patientForm.mailingStructureAddressBlock = this.patientForm.residentStructureAddressBlock
+          this.patientForm.mailingStructureAddressFloor = this.patientForm.residentStructureAddressFloor
+          this.patientForm.mailingStructureAddressFlat = this.patientForm.residentStructureAddressFlat
+        }
+
+        backupPatientForm = { ...this.patientForm }
       } catch (e) {
         console.err('Error occurred while fetching patient by id', e)
       }
@@ -326,7 +371,7 @@ export default {
     saveAddress() {
       this.addressFormDialogShowing = false
       this.patientForm.isSeparateMailingAddress = this.$store.state.isSeparateMailingAddress
-      console.log(`saveAddress - sub-district: ${this.patientForm.residentStructureAddressSubdistrict}`)
+
       for (const [key, value] of Object.entries(this.$store.state.addressFields)) {
         this.patientForm[key] = value
       }
@@ -355,6 +400,13 @@ export default {
     closeFormDialog() {
       this.cancellationDialog = false
       this.$emit('on-close')
+    },
+    onCloseFocus() {
+      console.log('on-close-focus')
+    },
+    onCloseKey(evt) {
+      console.log(`onCloseKey`)
+      console.log(evt)
     }
   },
   watch: {
@@ -382,8 +434,9 @@ export default {
       <v-card-title class="card-header">
         <div class="title-1">Create New Patient</div>
         <v-btn
+          tabindex="45"
           icon
-          outlined
+          class="close-btn-outlined"
           @click="$emit('on-close')"
         >
           <v-icon>mdi-close</v-icon>
@@ -409,6 +462,7 @@ export default {
                   <v-label for="doc-num">Document No.<span class="alert-text">*</span></v-label>
                   <div class="selection-text-group doc-num">
                     <v-select
+                      tabindex="44"
                       v-model.trim="patientForm.documentTypeId"
                       :rules="[requiredRule]"
                       hide-details
@@ -428,6 +482,7 @@ export default {
                       :filled="isSelectionFieldLoading || isFieldDisabled"
                     />
                     <v-text-field
+                      tabindex="43"
                       v-model.trim="patientForm.documentNumber"
                       :rules="[requiredRule]"
                       id="doc-num"
@@ -445,6 +500,7 @@ export default {
                 <div>
                   <v-label>Surname<span class="alert-text">*</span></v-label>
                   <v-text-field
+                    tabindex="42"
                     v-model.trim="patientForm.surname"
                     :rules="[requiredRule]"
                     hide-details
@@ -460,6 +516,7 @@ export default {
                 <div>
                   <v-label>Given Name<span class="alert-text">*</span></v-label>
                   <v-text-field
+                    tabindex="41"
                     v-model.trim="patientForm.givenName"
                     :rules="[requiredRule]"
                     hide-details
@@ -475,6 +532,7 @@ export default {
                 <div>
                   <v-label>中文姓名</v-label>
                   <v-text-field
+                    tabindex="40"
                     v-model.trim="patientForm.chineseName"
                     hide-details
                     outlined
@@ -490,24 +548,28 @@ export default {
                   <v-label>Sex<span class="alert-text">*</span></v-label>
                   <div class="chip-row">
                     <v-btn
+                      tabindex="39"
                       x-small
                       rounded
                       style="font-weight: 700"
                       class="caption-2 no-cap"
                       :outlined="patientForm.sex !== 'Male'"
-                      @click="patientForm.sex = 'Male'"
                       :color="resolveChoiceButtonColor(patientForm.sex, 'Male')"
+                      :disabled="isFieldDisabled"
+                      @click="patientForm.sex = 'Male'"
                     >
                       Male
                     </v-btn>
                     <v-btn
+                      tabindex="38"
                       x-small
                       rounded
                       style="font-weight: 700"
                       class="caption-2 no-cap"
                       :outlined="patientForm.sex !== 'Female'"
-                      @click="patientForm.sex = 'Female'"
                       :color="resolveChoiceButtonColor(patientForm.sex, 'Female')"
+                      :disabled="isFieldDisabled"
+                      @click="patientForm.sex = 'Female'"
                     >
                       Female
                     </v-btn>
@@ -527,11 +589,11 @@ export default {
                     <!-- v-on="on" -->
                     <template v-slot:activator="{ on, attrs }">
                       <v-text-field
+                        tabindex="37"
                         :value="userDOB"
                         hide-details
                         outlined
                         dense
-                        append-icon="mdi-calendar"
                         placeholder="DD/MM/YYYY"
                         :rules="dobRules"
                         :loading="isInputFieldLoading"
@@ -539,8 +601,17 @@ export default {
                         :filled="isFieldDisabled"
                         @input="handleDOBInput"
                         @keydown="filterDateInput"
-                        @click:append="showDOBMenu = true"
-                      ></v-text-field>
+                      >
+                        <template v-slot:append>
+                          <v-btn
+                            icon
+                            @click="showDOBMenu = true"
+                            tabindex="-1"
+                          >
+                            <v-icon>mdi-calendar</v-icon>
+                          </v-btn>
+                        </template>
+                      </v-text-field>
                     </template>
                     <v-date-picker
                       v-model="patientForm.dateOfBirth"
@@ -553,6 +624,7 @@ export default {
                 <div>
                   <v-label>Occupation</v-label>
                   <v-autocomplete
+                    tabindex="36"
                     hide-details
                     outlined
                     dense
@@ -568,6 +640,7 @@ export default {
                 <div>
                   <v-label>Nationality<span class="alert-text">*</span></v-label>
                   <v-select
+                    tabindex="35"
                     hide-details
                     class="caption-1"
                     outlined
@@ -590,6 +663,7 @@ export default {
                 <div>
                   <v-label>PR No.</v-label>
                   <v-text-field
+                    tabindex="34"
                     v-model.trim="patientForm.prNumber"
                     hide-details
                     outlined
@@ -605,6 +679,7 @@ export default {
                   <v-label>Mobile No.<span class="alert-text">*</span></v-label>
                   <div class="selection-text-group mobile-num">
                     <v-select
+                      tabindex="33"
                       v-model.trim="patientForm.mobileCountryCodeId"
                       :rules="[requiredRule]"
                       hide-details
@@ -624,6 +699,7 @@ export default {
                       :filled="isSelectionFieldLoading || isFieldDisabled"
                     />
                     <v-text-field
+                      tabindex="32"
                       v-model.trim="patientForm.mobileNumber"
                       @keydown="filterNumInput"
                       hide-details
@@ -641,6 +717,7 @@ export default {
                 <div>
                   <v-label>Tel No. (Home)</v-label>
                   <v-text-field
+                    tabindex="31"
                     v-model.trim="patientForm.homeTelNo"
                     @keydown="filterNumInput"
                     hide-details
@@ -660,6 +737,7 @@ export default {
               <div class="form-header">
                 <div class="form-section-title">Address</div>
                 <v-btn
+                  tabindex="30"
                   small
                   color="primary"
                   class="white--text caption-2 no-cap"
@@ -671,7 +749,7 @@ export default {
                     left
                     dark
                   >
-                    mdi-cloud-upload
+                    mdi-file-edit-outline
                   </v-icon>
                   Edit Address
                 </v-btn>
@@ -728,6 +806,7 @@ export default {
                 <div>
                   <v-label>Remarks</v-label>
                   <v-text-field
+                    tabindex="29"
                     v-model.trim="patientForm.remark"
                     hide-details
                     outlined
@@ -743,6 +822,7 @@ export default {
                 <div>
                   <v-label>Email</v-label>
                   <v-text-field
+                    tabindex="28"
                     v-model.trim="patientForm.email"
                     :rules="[emailRule]"
                     hide-details
@@ -763,6 +843,7 @@ export default {
                     style="height: 60%"
                   >
                     <v-checkbox
+                      tabindex="27"
                       v-model="patientForm.isMarketingPurpose"
                       class="m-checkbox caption-1"
                       :class="{ bold: !isFieldDisabled }"
@@ -772,6 +853,7 @@ export default {
                       :disabled="isFieldDisabled"
                     />
                     <v-checkbox
+                      tabindex="26"
                       v-model="patientForm.isCancelSubscription"
                       class="m-checkbox caption-1"
                       :class="{ bold: !isFieldDisabled }"
@@ -787,6 +869,7 @@ export default {
                   <v-label>SMS Language & Option<span class="alert-text">*</span></v-label>
                   <div class="chip-row">
                     <v-btn
+                      tabindex="25"
                       x-small
                       rounded
                       style="font-weight: 700"
@@ -800,6 +883,7 @@ export default {
                     </v-btn>
 
                     <v-btn
+                      tabindex="24"
                       x-small
                       rounded
                       style="font-weight: 700"
@@ -812,6 +896,7 @@ export default {
                       Chi
                     </v-btn>
                     <v-checkbox
+                      tabindex="23"
                       v-model="patientForm.isRefuseSms"
                       class="m-checkbox caption-1"
                       :class="{ bold: !isFieldDisabled }"
@@ -843,8 +928,9 @@ export default {
                   :disabled="isFieldDisabled"
                   :loading="isInputFieldLoading"
                   :selection-loading="isSelectionFieldLoading"
+                  :first-tab-index="18"
                   @update:name="val => (patientForm.nextOfKin1Name = val.trim())"
-                  @update:relationshipId="val => (patientForm.nextOfKin1RelationshipId = val.trim())"
+                  @update:relationshipId="val => (patientForm.nextOfKin1RelationshipId = val)"
                   @update:contactNumber="val => (patientForm.nextOfKin1ContactNumber = val.trim())"
                   @update:smsNumber="val => (patientForm.nextOfKin1SmsNumber = val.trim())"
                   @update:remarks="val => (patientForm.nextOfKin1Remark = val.trim())"
@@ -862,11 +948,12 @@ export default {
                   :disabled="isFieldDisabled"
                   :loading="isInputFieldLoading"
                   :selection-loading="isSelectionFieldLoading"
-                  @update:name="val => (patientForm.nextOfKin2Name = val)"
+                  :first-tab-index="13"
+                  @update:name="val => (patientForm.nextOfKin2Name = val.trim())"
                   @update:relationshipId="val => (patientForm.nextOfKin2RelationshipId = val)"
-                  @update:contactNumber="val => (patientForm.nextOfKin2ContactNumber = val)"
-                  @update:smsNumber="val => (patientForm.nextOfKin2SmsNumber = val)"
-                  @update:remarks="val => (patientForm.nextOfKin2Remark = val)"
+                  @update:contactNumber="val => (patientForm.nextOfKin2ContactNumber = val.trim())"
+                  @update:smsNumber="val => (patientForm.nextOfKin2SmsNumber = val.trim())"
+                  @update:remarks="val => (patientForm.nextOfKin2Remark = val.trim())"
                 />
 
                 <next-of-kin-form
@@ -880,11 +967,12 @@ export default {
                   :disabled="isFieldDisabled"
                   :loading="isInputFieldLoading"
                   :selection-loading="isSelectionFieldLoading"
-                  @update:name="val => (patientForm.nextOfKin3Name = val)"
+                  :first-tab-index="8"
+                  @update:name="val => (patientForm.nextOfKin3Name = val.trim())"
                   @update:relationshipId="val => (patientForm.nextOfKin3RelationshipId = val)"
-                  @update:contactNumber="val => (patientForm.nextOfKin3ContactNumber = val)"
-                  @update:smsNumber="val => (patientForm.nextOfKin3SmsNumber = val)"
-                  @update:remarks="val => (patientForm.nextOfKin3Remark = val)"
+                  @update:contactNumber="val => (patientForm.nextOfKin3ContactNumber = val.trim())"
+                  @update:smsNumber="val => (patientForm.nextOfKin3SmsNumber = val.trim())"
+                  @update:remarks="val => (patientForm.nextOfKin3Remark = val.trim())"
                 />
               </div>
             </div>
@@ -895,6 +983,7 @@ export default {
               </div>
               <div class="form-content split-columns">
                 <v-checkbox
+                  tabindex="7"
                   v-model="patientForm.isSensitive"
                   class="m-checkbox caption-1 colspan-full"
                   :class="{ bold: !isFieldDisabled }"
@@ -905,6 +994,7 @@ export default {
                 />
 
                 <v-checkbox
+                  tabindex="6"
                   v-model="patientForm.isOutstandingBill"
                   class="m-checkbox caption-1"
                   :class="{ bold: !isFieldDisabled }"
@@ -915,18 +1005,21 @@ export default {
                 />
 
                 <v-checkbox
+                  tabindex="4"
                   v-model="patientForm.isPersonaNonGrata"
                   class="m-checkbox caption-1"
+                  :class="{ bold: !isFieldDisabled }"
                   label="Persona Non-Grata"
                   color="#F3BC51"
                   hide-details
-                  disabled
+                  :disabled="isFieldDisabled"
                 />
 
                 <v-textarea
+                  tabindex="5"
                   v-model="patientForm.outstandingBillReason"
-                  :filled="!patientForm.isOutstandingBill"
-                  :disabled="!patientForm.isOutstandingBill"
+                  :filled="!patientForm.isOutstandingBill || isFieldDisabled"
+                  :disabled="!patientForm.isOutstandingBill || isFieldDisabled"
                   style="border-radius: 7px"
                   outlined
                   hide-details
@@ -935,12 +1028,13 @@ export default {
                 />
 
                 <v-textarea
+                  tabindex="3"
                   v-model="patientForm.personaNonGrataReason"
-                  filled
+                  :filled="!patientForm.isPersonaNonGrata || isFieldDisabled"
+                  :disabled="!patientForm.isPersonaNonGrata || isFieldDisabled"
                   style="border-radius: 7px"
                   outlined
                   hide-details
-                  disabled
                   no-resize
                   placeholder="Reason"
                 />
@@ -960,9 +1054,9 @@ export default {
 
       <v-card-actions class="card-buttons-grid">
         <v-btn
-          class="custom-btn-padding-small no-cap"
+          class="custom-btn-padding-small no-cap white--text"
           v-show="patientId && !isEditing"
-          color="warning"
+          color="#EC6161"
           rounded
           :disabled="isSubmitting"
           @click="isEditing = true"
@@ -971,13 +1065,14 @@ export default {
             left
             dark
           >
-            mdi-content-save-outline
+            mdi-file-edit-outline
           </v-icon>
           Edit
         </v-btn>
 
         <div class="inline-btn-group">
           <v-btn
+            tabindex="2"
             class="custom-btn-padding no-cap"
             color="primary"
             rounded
@@ -989,7 +1084,9 @@ export default {
           </v-btn>
 
           <v-btn
+            tabindex="1"
             class="custom-btn-padding no-cap"
+            ref="saveBtn"
             v-show="!patientId || (patientId && isEditing)"
             color="primary"
             rounded
@@ -1020,7 +1117,7 @@ export default {
           <v-card-actions>
             <v-spacer></v-spacer>
             <v-btn
-              class="no-cap"
+              class="custom-btn-padding no-cap"
               color="primary"
               rounded
               outlined
@@ -1029,7 +1126,7 @@ export default {
             >
 
             <v-btn
-              class="no-cap"
+              class="custom-btn-padding no-cap"
               color="primary"
               rounded
               @click="cancelEdit"
@@ -1045,6 +1142,14 @@ export default {
           </v-card-actions>
         </v-card>
       </v-dialog>
+
+      <custom-snackbar
+        :show="snackbar"
+        :title="snackbarTitle"
+        :message="snackbarMessage"
+        :progress-bar-color="snackbarProgressBarColor"
+        @on-close="snackbar = false"
+      />
     </v-card>
   </v-dialog>
 </template>

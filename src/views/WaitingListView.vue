@@ -4,6 +4,7 @@
       <div class="title-1">Patient</div>
 
       <v-btn
+        tabindex="-1"
         color="primary"
         class="white--text footnote no-cap custom-btn-padding"
         rounded
@@ -13,7 +14,7 @@
           left
           dark
         >
-          mdi-cloud-upload
+          mdi-plus
         </v-icon>
         Create Patient
       </v-btn>
@@ -27,17 +28,19 @@
         dense
         outlined
         height="36"
+        tabindex="1"
       />
 
       <v-text-field
         class="search-text-field"
         width="100%"
-        v-model="searchText"
+        v-model.trim="searchText"
         placeholder="Search Patient"
-        append-icon="mdi-map-marker"
+        append-icon="mdi-magnify"
         dense
         outlined
         clearable
+        tabindex="2"
         :loading="searching"
         @keypress.enter="searchPatients"
       />
@@ -62,6 +65,16 @@
       :show-dialog="patientFormDialog"
       :patient-id="selectedPatientId"
       @on-close="patientFormDialog = false"
+      @on-create-success="snackbar = true"
+      @on-update-success="handlePatientUpdate"
+    />
+
+    <custom-snackbar
+      :show="snackbar"
+      title="Patient Profile Created"
+      message="Patient has been successfully created."
+      progress-bar-color="primary"
+      @on-close="snackbar = false"
     />
   </div>
 </template>
@@ -74,12 +87,14 @@ import PatientList from '../components/waiting-list/PatientList.vue'
 import { formatDate } from '../utils/formatters'
 import PatientDetails from '../components/waiting-list/PatientDetails.vue'
 import PatientFormDialog from '../components/forms/PatientFormDialog.vue'
+import CustomSnackbar from '../components/CustomSnackbar.vue'
 
 export default {
   components: {
     PatientList,
     PatientDetails,
-    PatientFormDialog
+    PatientFormDialog,
+    CustomSnackbar
   },
   data: () => ({
     searchFilters: [
@@ -95,7 +110,8 @@ export default {
     selectedPatientId: null,
     patientAdditionalInfo: null,
     patientFormDialog: false,
-    isLoadingPatientDetails: false
+    isLoadingPatientDetails: false,
+    snackbar: false
   }),
   methods: {
     toggleMenu() {},
@@ -152,6 +168,9 @@ export default {
     handleCreatePatientClick() {
       this.selectedPatientId = null
       this.patientFormDialog = true
+    },
+    handlePatientUpdate() {
+      this.searchPatients()
     }
   },
   computed: {}

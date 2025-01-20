@@ -3,6 +3,9 @@ export default {
   props: {
     addressType: String
   },
+  data: () => ({
+    requiredRule: v => !!v
+  }),
   methods: {
     getField(key) {
       return this.$store.state.address[`${this.addressType}StructureAddress${key}`]
@@ -104,6 +107,7 @@ export default {
           dense
           clearable
           placeholder="Zone"
+          :rules="[requiredRule]"
         />
       </div>
 

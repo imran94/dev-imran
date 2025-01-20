@@ -5,11 +5,10 @@ Vue.use(Vuex)
 
 export const store = new Vuex.Store({
     state: {
-        count: 0,
         isSeparateMailingAddress: false,
 
         addressFields: {
-            residentStructureAddressZone: 'mzone',
+            residentStructureAddressZone: '',
             residentStructureAddressDistrict: '',
             residentStructureAddressSubdistrict: '',
             residentStructureAddressStreet: '',
@@ -36,14 +35,6 @@ export const store = new Vuex.Store({
         }
     },
     mutations: {
-        increment(state) {
-            state.count++
-        },
-        resetPatientForm(state) {
-            state.patientForm = {
-                documentNo: ''
-            }
-        },
         updateIsSeparateMailingAddress(state, value) {
             state.isSeparateMailingAddress = value
             if (!value) {
@@ -73,6 +64,8 @@ export const store = new Vuex.Store({
             key,
             value
         }) {
+            value = value?.toUpperCase()
+
             state.addressFields[`${addressType}StructureAddress${key}`] = value
 
             if (addressType !== 'mailing' &&

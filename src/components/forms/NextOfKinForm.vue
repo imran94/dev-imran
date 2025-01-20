@@ -6,6 +6,7 @@ export default {
     formNumber: String,
     required: Boolean,
     relationships: Array,
+    firstTabIndex: Number,
 
     name: String,
     relationshipId: Number,
@@ -71,28 +72,32 @@ export default {
 
     <div class="form">
       <v-text-field
+        :tabindex="firstTabIndex + 4"
         :value="name"
         @input="updateName"
         hide-details
         outlined
         dense
         clearable
-        prepend-icon="mdi-map-marker"
-        placeholder="Next of Kin Name"
+        placeholder='"Next of Kin Name"'
         :rules="required ? [v => !!v] : []"
         :disabled="disabled"
         :loading="loading"
         :filled="disabled"
-      />
+      >
+        <template v-slot:prepend>
+          <v-icon color="#333333"> mdi-account-outline </v-icon>
+        </template>
+      </v-text-field>
 
       <v-select
+        :tabindex="firstTabIndex + 3"
         :value="relationshipId"
         @change="updateRelationshipId"
         hide-details
         class="caption-1"
         outlined
         dense
-        prepend-icon="mdi-map-marker"
         placeholder="Relationship"
         :items="relationships"
         item-text="description"
@@ -105,35 +110,51 @@ export default {
         :loading="loading"
         :disabled="disabled"
         :filled="disabled || selectionLoading"
-      />
+      >
+        <template v-slot:prepend>
+          <v-icon color="#333333"> mdi-account-supervisor-outline </v-icon>
+        </template>
+      </v-select>
+
       <v-text-field
+        :tabindex="firstTabIndex + 2"
         :value="contactNumber"
         @input="updateContactNumber"
         hide-details
         outlined
         dense
         clearable
-        prepend-icon="mdi-map-marker"
         placeholder="Contact Number"
         @keydown="filterNumInput"
         :rules="required ? [v => !!v] : []"
         :disabled="disabled"
         :loading="loading"
         :filled="disabled"
-      />
+      >
+        <template v-slot:prepend>
+          <v-icon color="#333333"> mdi-cellphone </v-icon>
+        </template>
+      </v-text-field>
+
       <v-text-field
+        :tabindex="firstTabIndex + 1"
         hide-details
         outlined
         dense
         clearable
-        prepend-icon="mdi-map-marker"
+        prepend-icon="mdi-message-outline"
         placeholder="SMS"
         :disabled="disabled"
         :loading="loading"
         :filled="disabled"
         @keydown="filterNumInput"
-      />
+      >
+        <template v-slot:prepend>
+          <v-icon color="#333333">mdi-message-outline</v-icon>
+        </template>
+      </v-text-field>
       <v-text-field
+        :tabindex="firstTabIndex"
         hide-details
         outlined
         dense

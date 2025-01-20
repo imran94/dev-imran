@@ -6,7 +6,9 @@ export default {
     showDialog: Boolean
   },
   emits: ['on-close', 'on-save'],
-  data: () => ({}),
+  data: () => ({
+    valid: true
+  }),
   computed: {
     isSeparateMailingAddress: {
       get() {
@@ -15,13 +17,21 @@ export default {
       set(value) {
         this.$store.commit('updateIsSeparateMailingAddress', value)
       }
+    },
+    maxDialogWidth() {
+      return this.isSeparateMailingAddress ? 1500 : 750
     }
   },
   methods: {
     handleCancel() {
       this.$emit('on-close')
     },
-    handleSave() {
+    async handleSave() {
+      const isFormValid = await this.$refs.form.validate()
+      if (!isFormValid) {
+        return
+      }
+
       this.$emit('on-save')
     }
   }
@@ -32,14 +42,16 @@ export default {
   <v-dialog
     v-model="showDialog"
     persistent
-    max-width="750"
+    :max-width="maxDialogWidth"
   >
     <v-card>
       <v-card-title class="card-header">
         <div class="title-1">Address Input</div>
         <v-btn
+          class="close-btn-outlined"
           icon
           outlined
+          tabindex="-1"
           @click="$emit('on-close')"
         >
           <v-icon>mdi-close</v-icon>
@@ -59,7 +71,12 @@ export default {
           />
         </div>
 
-        <div class="address-forms">
+        <v-form
+          ref="form"
+          v-model="valid"
+          class="address-forms"
+          lazy-validation
+        >
           <div class="address-form">
             <div class="subheadline form-heading">Address</div>
             <address-form address-type="resident" />
@@ -67,12 +84,12 @@ export default {
 
           <div
             class="address-form"
-            v-show="isSeparateMailingAddress"
+            v-if="isSeparateMailingAddress"
           >
             <div class="subheadline form-heading">Mailing Address</div>
             <address-form address-type="mailing" />
           </div>
-        </div>
+        </v-form>
       </v-card-text>
 
       <v-card-actions style="justify-content: flex-end">
@@ -81,6 +98,7 @@ export default {
           color="primary"
           rounded
           outlined
+          tabindex="-1"
           @click="handleCancel"
           >Cancel</v-btn
         >
@@ -96,7 +114,7 @@ export default {
           >
             mdi-content-save-outline
           </v-icon>
-          Save
+          Confirm
         </v-btn>
       </v-card-actions>
     </v-card>
