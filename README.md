@@ -2,6 +2,10 @@
 
 A small frontend made in Vue 2 and Vuetify as part of a take-home test for a frontend position I'm applying for.
 
+### Requirements
+
+Node.js, preferably v22 or above
+
 ## Recommended IDE Setup
 
 [VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin).
